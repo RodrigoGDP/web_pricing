@@ -20,13 +20,20 @@
   </head>
   <body>
     <header class="container-fluid site-header">
-      <div class="logo-area">
-        <a href="/"
-          ><img
-            src="{{ url_for('static', filename='images/logo-llosa.png') }}"
-            style="height: 110px"
-            alt="Logo Llosa"
-        /></a>
+      <!-- ESTRUCTURA DE CABECERA RESTAURADA -->
+      <div class="header-left-section">
+        <div class="logo-area">
+          <a href="/"
+            ><img
+              src="{{ url_for('static', filename='images/logo-llosa.png') }}"
+              style="height: 110px"
+              alt="Logo Llosa"
+          /></a>
+        </div>
+        <!-- Este es el "hueco" que habíamos perdido -->
+        <div class="project-selector-wrapper">
+          {% block project_selector %}{% endblock %}
+        </div>
       </div>
       <nav class="main-nav">
         <ul>
@@ -37,8 +44,11 @@
       </nav>
     </header>
 
-    <main class="container-fluid main-content-area">
-      {% block content %}{% endblock %}
-    </main>
+    <div class="main-layout-grid">
+      <main class="main-content">{% block content %}{% endblock %}</main>
+      <aside class="sidebar-placeholder">
+        {% block sidebar %}{% endblock %}
+      </aside>
+    </div>
   </body>
 </html>

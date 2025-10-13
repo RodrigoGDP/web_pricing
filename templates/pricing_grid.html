@@ -1,73 +1,81 @@
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %}
+
+<!-- ESTE BLOQUE AHORA RELLENA EL HUECO EN LA CABECERA -->
+{% block project_selector %}
+    <select name="project" onchange="window.location.href='/pricing/' + this.value">
+        {% for project in all_projects %}
+        <option value="{{ project.nombre_proyecto }}" {% if project.nombre_proyecto == current_project %}selected{% endif %}>
+            {{ project.nombre_proyecto }}
+        </option>
+        {% endfor %}
+    </select>
+{% endblock %}
+
+
+<!-- EL RESTO DEL CONTENIDO VA AQUÍ -->
+{% block content %}
 <div class="pricing-page-wrapper">
-  <!-- Barra de filtros (sin cambios) -->
-  <div class="main-filter-bar">
-    <!-- ... (código de los filtros) ... -->
-  </div>
+    <!-- El selector de proyecto ya no está aquí -->
 
-  <!-- Contenedor para la parrilla y los filtros secundarios -->
-  <div id="pricing-content-wrapper">
-    {% include '_grid_and_filters_partial.html' %}
-  </div>
+    <div id="pricing-content-wrapper">
+        {% include '_filters_and_grid.html' %}
+    </div>
 
-  <!-- NUEVO: Contenedor para la sección inferior (Tabla + Leyenda) -->
-  <div class="bottom-section-grid">
-    <!-- Columna de la Tabla de Aprobación -->
     <div class="approval-table-container">
-      <h3>Proformas por tipología</h3>
-      <table class="approval-table">
-        <thead>
-          <tr>
-            <th>Tipología</th>
-            <th>Número de proformas</th>
-            <th>Precio prom actual</th>
-            <th>Precio prom mercado</th>
-            <th>Precio prom sugerido</th>
-            <th>Triggers</th>
-            <th>Aprobación</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in approval_table_data %}
-          <tr>
-            <td>{{ row.tipologia }}</td>
-            <td>{{ row.total_proformas }}</td>
-            <td>{{ row.avg_precio_m2|currency }}</td>
-            <td></td>
-            <!-- Vacío por ahora -->
-            <td></td>
-            <!-- Vacío por ahora -->
-            <td></td>
-            <!-- Vacío por ahora -->
-            <td>
-              <select>
-                <option>Modificar</option>
-                <option>Aprobar</option>
-                <option>Rechazado</option>
-              </select>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+        <h3>Proformas por tipología</h3>
+        <table class="approval-table">
+            <thead>
+                <tr>
+                    <th>Tipología</th>
+                    <th>Unidades disponibles</th>
+                    <th>Número de proformas</th>
+                    <th>Precio prom actual</th>
+                    <th>Precio prom mercado</th>
+                    <th>Precio prom sugerido</th>
+                    <th>Triggers</th>
+                    <th>Aprobación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in approval_table_data %}
+                <tr class="{% if row.has_alert %}highlight-red{% endif %}">
+                    <td>{{ row.tipologia }}</td>
+                    <td>{{ row.unidades_disponibles_str }}</td>
+                    <td>{{ row.total_proformas }}</td>
+                    <td>{{ row.avg_precio_m2|currency }}</td>
+                    <td></td><td></td><td></td>
+                    <td><select><option>Modificar</option><option>Aprobar</option><option>Rechazado</option></select></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
+</div>
+{% endblock %}
 
-    <!-- Columna de la Leyenda -->
-    <div class="legend-container">
-      <h3>Alerta Unidades</h3>
-      <div class="legend-item">
+{% block sidebar %}
+<div class="legend-container">
+    <h3>Alerta Unidades</h3>
+    <div class="legend-item">
         <span class="color-box red"></span>
-        <span>{{ legend_data.red }}</span>
-      </div>
-      <div class="legend-item">
-        <span class="color-box green"></span>
-        <span>{{ legend_data.green }}</span>
-      </div>
-      <div class="legend-item">
-        <span class="color-box gray"></span>
-        <span>{{ legend_data.gray }}</span>
-      </div>
+        <div class="legend-text">
+            <span>{{ legend_data.red }}</span>
+            <small>Actualizar Pricing</small>
+        </div>
     </div>
-  </div>
+    <div class="legend-item">
+        <span class="color-box green"></span>
+        <div class="legend-text">
+            <span>{{ legend_data.green }}</span>
+            <small>Mantener Pricing</small>
+        </div>
+    </div>
+    <div class="legend-item">
+        <span class="color-box gray"></span>
+        <div class="legend-text">
+            <span>{{ legend_data.gray }}</span>
+            <small>Unidades Vendidas</small>
+        </div>
+    </div>
 </div>
 {% endblock %}
