@@ -1,0 +1,31 @@
+<!-- Este es el contenedor de la parrilla que se actualizará con HTMX -->
+<div class="grid-container">
+  {% for piso, unidades_en_piso in grid.items() %}
+  <div class="floor-label">P{{ piso }}</div>
+  <div
+    class="units-container"
+    style="grid-template-columns: repeat({{ max_columns }}, 1fr);"
+  >
+    {% for unit in unidades_en_piso %}
+    <div
+      class="unidad {{ unit.css_class }}
+                    {% if unit.estado_comercial|lower == 'vendido' %} vendido
+                    {% elif unit.alerta_status == 'subir_precio' %} alerta-subir
+                    {% else %} disponible
+                    {% endif %}"
+    >
+      {% if vista_actual == 'proformas' %}
+      <span class="unit-content">{{ unit.proformas_count }}</span>
+      {% else %} {% if unit.estado_comercial|lower == 'vendido' %}
+      <span class="unit-content">SOLD</span>
+      {% else %}
+      <span class="unit-content">
+        {{ unit.precio_lista|currency }} {% if unit.alerta_status ==
+        'subir_precio' %}↑{% endif %}
+      </span>
+      {% endif %} {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>

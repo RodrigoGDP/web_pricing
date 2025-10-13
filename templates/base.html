@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <script
+      src="https://unpkg.com/htmx.org@1.9.10"
+      integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
+      crossorigin="anonymous"
+    ></script>
+    <title>Pricing Dashboard</title>
+  </head>
+  <body>
+    <header class="container-fluid site-header">
+      <div class="header-left-section">
+        <div class="logo-area">
+          <a href="/"
+            ><img
+              src="{{ url_for('static', filename='images/logo-llosa.png') }}"
+              style="height: 110px"
+              alt="Logo Llosa"
+          /></a>
+        </div>
+        <div class="project-selector-wrapper">
+          {% block project_selector %}{% endblock %}
+        </div>
+      </div>
+      <nav class="main-nav">
+        <ul>
+          <li><a href="/">Dashboard</a></li>
+          <li><a href="/">Pricing</a></li>
+          <li><a href="#">Análisis</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <!-- VOLVEMOS A LA ESTRUCTURA DE 2 COLUMNAS -->
+    <div class="main-layout-grid">
+      <main class="main-content">{% block content %}{% endblock %}</main>
+      <aside class="sidebar-placeholder">
+        <!-- Espacio vacío de la derecha -->
+      </aside>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+<!-- Esta es una fila de la tabla Layout Overview -->
+<tr id="layout-{{ layout.type | replace(' ', '-') }}">
+    <td>{{ layout.type }}</td>
+    <td>{{ layout.data.sold_percentage }}%</td>
+    <td>
+        <!-- Este es nuestro formulario de edición -->
+        <form 
+            hx-post="/update-price/{{ layout.type }}"
+            hx-target="#layout-{{ layout.type | replace(' ', '-') }}"
+            hx-swap="outerHTML"
+            class="editable-price-form">
+
+            <input 
+                type="number" 
+                name="average_price" 
+                value="{{ layout.data.average_price }}"
+                aria-label="Average Price">
+            
+            <button type="submit">Guardar</button>
+        </form>
+    </td>
+</tr>

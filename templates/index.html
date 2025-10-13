@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="grid">
+        <section>
+            <h1 style="margin-bottom: 0;">Dashboard de Ventas</h1>
+            <p>Resumen del proyecto Cosmos</p>
+        </section>
+    </div>
+
+   <!-- NUEVO: La tabla interactiva Layout Overview -->
+    <article>
+        <header><strong>Layout Overview</strong></header>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Layout</th>
+                        <th>Sold %</th>
+                        <th>Average Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 
+                        Aquí recorremos los datos que pasamos desde Flask
+                        y por cada uno, incluimos nuestro fragmento de fila.
+                    -->
+                    {% for type, data in layout_data.items() %}
+                        {% set layout = {'type': type, 'data': data} %}
+                        {% include '_layout_row.html' %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+{% endblock %}
