@@ -1,0 +1,28 @@
+<!-- Este parcial contiene los filtros y la parrilla para que se puedan actualizar juntos -->
+<div class="secondary-filter-bar">
+    <div class="filter-group">
+        <select name="tipologia"
+                hx-get="{{ url_for('pricing', project_name=current_project) }}"
+                hx-target="#pricing-content-wrapper"
+                hx-trigger="change"
+                hx-swap="innerHTML">
+            <option value="">Todas las Tipologías</option>
+            {% for tipo in all_tipologias %}
+                <option value="{{ tipo }}" {% if tipo == tipologia_filtro %}selected{% endif %}>{{ tipo }}</option>
+            {% endfor %}
+        </select>
+        
+        <button class="contrast {% if vista_actual == 'precio' %}active-view{% endif %}"
+                hx-get="{{ url_for('pricing', project_name=current_project, vista='precio') }}"
+                hx-target="#pricing-content-wrapper"
+                hx-swap="innerHTML"
+                hx-include="[name='tipologia']">Precio</button>
+        <button class="contrast {% if vista_actual == 'proformas' %}active-view{% endif %}"
+                hx-get="{{ url_for('pricing', project_name=current_project, vista='proformas') }}"
+                hx-target="#pricing-content-wrapper"
+                hx-swap="innerHTML"
+                hx-include="[name='tipologia']">Proformas</button>
+    </div>
+</div>
+
+{% include '_grid_container.html' %}

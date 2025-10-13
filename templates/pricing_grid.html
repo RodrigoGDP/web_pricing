@@ -1,46 +1,73 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block content %}
+<div class="pricing-page-wrapper">
+  <!-- Barra de filtros (sin cambios) -->
+  <div class="main-filter-bar">
+    <!-- ... (código de los filtros) ... -->
+  </div>
 
-{% block project_selector %}
-    <!-- CAMBIO: El selector ahora es dinámico y funcional -->
-    <select name="project" onchange="window.location.href='/pricing/' + this.value">
-        {% for project in all_projects %}
-            <option value="{{ project.nombre_proyecto }}" {% if project.nombre_proyecto == current_project %}selected{% endif %}>
-                {{ project.nombre_proyecto }}
-            </option>
-        {% endfor %}
-    </select>
-{% endblock %}
+  <!-- Contenedor para la parrilla y los filtros secundarios -->
+  <div id="pricing-content-wrapper">
+    {% include '_grid_and_filters_partial.html' %}
+  </div>
 
-{% block content %}
-    <div class="secondary-filter-bar">
-        <div class="filter-group"></div>
-        <div class="filter-group">
-            <select name="tipologia"
-                    hx-get="{{ url_for('pricing', project_name=current_project) }}"
-                    hx-target=".grid-container"
-                    hx-trigger="change"
-                    hx-swap="outerHTML"
-                    hx-include="[name='vista']">
-                <option value="">Todas las Tipologías</option>
-                {% for tipo in all_tipologias %}
-                    <option value="{{ tipo }}" {% if tipo == tipologia_filtro %}selected{% endif %}>{{ tipo }}</option>
-                {% endfor %}
-            </select>
-            
-            <!-- CAMBIO CRÍTICO: Los botones ahora usan HTMX para mantener los filtros -->
-            <input type="hidden" name="vista" value="{{ vista_actual }}">
-            <button class="contrast {% if vista_actual == 'precio' %}active-view{% endif %}"
-                    hx-get="{{ url_for('pricing', project_name=current_project, vista='precio') }}"
-                    hx-target=".grid-container"
-                    hx-swap="outerHTML"
-                    hx-include="[name='tipologia']">Precio</button>
-            <button class="contrast {% if vista_actual == 'proformas' %}active-view{% endif %}"
-                    hx-get="{{ url_for('pricing', project_name=current_project, vista='proformas') }}"
-                    hx-target=".grid-container"
-                    hx-swap="outerHTML"
-                    hx-include="[name='tipologia']">Proformas</button>
-        </div>
+  <!-- NUEVO: Contenedor para la sección inferior (Tabla + Leyenda) -->
+  <div class="bottom-section-grid">
+    <!-- Columna de la Tabla de Aprobación -->
+    <div class="approval-table-container">
+      <h3>Proformas por tipología</h3>
+      <table class="approval-table">
+        <thead>
+          <tr>
+            <th>Tipología</th>
+            <th>Número de proformas</th>
+            <th>Precio prom actual</th>
+            <th>Precio prom mercado</th>
+            <th>Precio prom sugerido</th>
+            <th>Triggers</th>
+            <th>Aprobación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in approval_table_data %}
+          <tr>
+            <td>{{ row.tipologia }}</td>
+            <td>{{ row.total_proformas }}</td>
+            <td>{{ row.avg_precio_m2|currency }}</td>
+            <td></td>
+            <!-- Vacío por ahora -->
+            <td></td>
+            <!-- Vacío por ahora -->
+            <td></td>
+            <!-- Vacío por ahora -->
+            <td>
+              <select>
+                <option>Modificar</option>
+                <option>Aprobar</option>
+                <option>Rechazado</option>
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    
-    {% include '_grid_container.html' %}
+
+    <!-- Columna de la Leyenda -->
+    <div class="legend-container">
+      <h3>Alerta Unidades</h3>
+      <div class="legend-item">
+        <span class="color-box red"></span>
+        <span>{{ legend_data.red }}</span>
+      </div>
+      <div class="legend-item">
+        <span class="color-box green"></span>
+        <span>{{ legend_data.green }}</span>
+      </div>
+      <div class="legend-item">
+        <span class="color-box gray"></span>
+        <span>{{ legend_data.gray }}</span>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

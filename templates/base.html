@@ -20,34 +20,25 @@
   </head>
   <body>
     <header class="container-fluid site-header">
-      <div class="header-left-section">
-        <div class="logo-area">
-          <a href="/"
-            ><img
-              src="{{ url_for('static', filename='images/logo-llosa.png') }}"
-              style="height: 110px"
-              alt="Logo Llosa"
-          /></a>
-        </div>
-        <div class="project-selector-wrapper">
-          {% block project_selector %}{% endblock %}
-        </div>
+      <div class="logo-area">
+        <a href="/"
+          ><img
+            src="{{ url_for('static', filename='images/logo-llosa.png') }}"
+            style="height: 110px"
+            alt="Logo Llosa"
+        /></a>
       </div>
       <nav class="main-nav">
         <ul>
           <li><a href="/">Dashboard</a></li>
-          <li><a href="/">Pricing</a></li>
+          <li><a href="/pricing">Pricing</a></li>
           <li><a href="#">Análisis</a></li>
         </ul>
       </nav>
     </header>
 
-    <!-- VOLVEMOS A LA ESTRUCTURA DE 2 COLUMNAS -->
-    <div class="main-layout-grid">
-      <main class="main-content">{% block content %}{% endblock %}</main>
-      <aside class="sidebar-placeholder">
-        <!-- Espacio vacío de la derecha -->
-      </aside>
-    </div>
+    <main class="container-fluid main-content-area">
+      {% block content %}{% endblock %}
+    </main>
   </body>
 </html>
