@@ -104,7 +104,8 @@ def pricing(project_name):
             'codigo': unit['codigo'], 'estado_comercial': unit['estado_comercial'],
             'precio_venta': unit['precio_venta'], 'precio_lista': unit['precio_lista'],
             'nombre_tipologia': unit['nombre_tipologia'], 'alerta_status': alerta_status,
-            'proformas_count': unit['proformas_count'], 'css_class': css_class
+            'proformas_count': unit['proformas_count'], 'css_class': css_class,
+            'area_techada': unit['area_techada']
         }
         grid_data[piso].append(processed_unit)
 
@@ -116,14 +117,10 @@ def pricing(project_name):
     max_columns = max(len(units) for units in sorted_grid_data.values()) if sorted_grid_data else 0
 
     if request.headers.get('HX-Request') == 'true':
-        # CAMBIO: Ahora renderiza el nuevo parcial que incluye los filtros y la parrilla
         return render_template('_filters_and_grid.html',
-                               grid=sorted_grid_data,
-                               all_tipologias=all_tipologias,
-                               current_project=project_name,
-                               tipologia_filtro=tipologia_filtro,
-                               vista_actual=vista_actual,
-                               max_columns=max_columns)
+                               grid=sorted_grid_data, all_tipologias=all_tipologias,
+                               current_project=project_name, tipologia_filtro=tipologia_filtro,
+                               vista_actual=vista_actual, max_columns=max_columns)
     else:
         return render_template('pricing_grid.html', 
                                grid=sorted_grid_data, all_tipologias=all_tipologias,

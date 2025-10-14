@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-<!-- ESTE BLOQUE AHORA RELLENA EL HUECO EN LA CABECERA -->
+<!-- ESTE BLOQUE INYECTA EL SELECTOR DE PROYECTO EN LA CABECERA -->
 {% block project_selector %}
     <select name="project" onchange="window.location.href='/pricing/' + this.value">
         {% for project in all_projects %}
@@ -15,8 +15,7 @@
 <!-- EL RESTO DEL CONTENIDO VA AQUÍ -->
 {% block content %}
 <div class="pricing-page-wrapper">
-    <!-- El selector de proyecto ya no está aquí -->
-
+    <!-- Este es el contenedor TARGET para las actualizaciones de HTMX -->
     <div id="pricing-content-wrapper">
         {% include '_filters_and_grid.html' %}
     </div>

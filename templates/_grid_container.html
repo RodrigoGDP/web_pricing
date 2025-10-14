@@ -16,12 +16,27 @@
     >
       {% if vista_actual == 'proformas' %}
       <span class="unit-content">{{ unit.proformas_count }}</span>
-      {% else %} {% if unit.estado_comercial|lower == 'vendido' %}
-      <span class="unit-content">SOLD</span>
+      {% elif vista_actual == 'codigo' %}
+      <span class="unit-content">{{ unit.codigo }}</span>
+      {% elif vista_actual == 'area_total' %}
+      <span class="unit-content">{{ unit.area_techada }} m²</span>
+      {% else %} {# Default to 'precio' #} {% if unit.estado_comercial|lower ==
+      'vendido' %}
+      <!-- CAMBIO: Muestra el precio de venta en lugar de 'SOLD' -->
+      <span class="unit-content">{{ unit.precio_venta|currency }}</span>
       {% else %}
       <span class="unit-content">
         {{ unit.precio_lista|currency }} {% if unit.alerta_status ==
-        'subir_precio' %}↑{% endif %}
+        'subir_precio' %}
+        <!-- CAMBIO: Se reemplaza el texto por un icono SVG -->
+        <svg
+          class="arrow-icon"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 14 12"
+        >
+          <path d="M7 0l7 12H0z" />
+        </svg>
+        {% endif %}
       </span>
       {% endif %} {% endif %}
     </div>

@@ -1,29 +1,38 @@
-<!-- BARRA DE FILTROS SECUNDARIA -->
+<!-- Este parcial contiene los filtros secundarios y la parrilla -->
 <div class="secondary-filter-bar">
-    <div class="filter-group right-filters">
-        <select name="tipologia"
-                hx-get="{{ url_for('pricing', project_name=current_project) }}"
-                hx-target="#pricing-content-wrapper"
-                hx-trigger="change"
-                hx-swap="innerHTML">
-            <option value="">Todas las Tipologías</option>
-            {% for tipo in all_tipologias %}
-                <option value="{{ tipo }}" {% if tipo == tipologia_filtro %}selected{% endif %}>{{ tipo }}</option>
-            {% endfor %}
-        </select>
-        
-        <button class="contrast {% if vista_actual == 'precio' %}active-view{% endif %}"
-                hx-get="{{ url_for('pricing', project_name=current_project, vista='precio') }}"
-                hx-target="#pricing-content-wrapper"
-                hx-swap="innerHTML"
-                hx-include="[name='tipologia']">Precio</button>
-        <button class="contrast {% if vista_actual == 'proformas' %}active-view{% endif %}"
-                hx-get="{{ url_for('pricing', project_name=current_project, vista='proformas') }}"
-                hx-target="#pricing-content-wrapper"
-                hx-swap="innerHTML"
-                hx-include="[name='tipologia']">Proformas</button>
-    </div>
+    <select name="tipologia"
+            hx-get="{{ url_for('pricing', project_name=current_project) }}"
+            hx-target="#pricing-content-wrapper"
+            hx-trigger="change"
+            hx-swap="innerHTML">
+        <option value="">Todas las Tipologías</option>
+        {% for tipo in all_tipologias %}
+            <option value="{{ tipo }}" {% if tipo == tipologia_filtro %}selected{% endif %}>{{ tipo }}</option>
+        {% endfor %}
+    </select>
+    
+    <input type="hidden" name="vista" value="{{ vista_actual }}">
+    
+    <button class="contrast {% if vista_actual == 'codigo' %}active-view{% endif %}"
+            hx-get="{{ url_for('pricing', project_name=current_project, vista='codigo') }}"
+            hx-target="#pricing-content-wrapper"
+            hx-swap="innerHTML"
+            hx-include="[name='tipologia']">Código</button>
+    <button class="contrast {% if vista_actual == 'precio' %}active-view{% endif %}"
+            hx-get="{{ url_for('pricing', project_name=current_project, vista='precio') }}"
+            hx-target="#pricing-content-wrapper"
+            hx-swap="innerHTML"
+            hx-include="[name='tipologia']">Precio</button>
+    <button class="contrast {% if vista_actual == 'proformas' %}active-view{% endif %}"
+            hx-get="{{ url_for('pricing', project_name=current_project, vista='proformas') }}"
+            hx-target="#pricing-content-wrapper"
+            hx-swap="innerHTML"
+            hx-include="[name='tipologia']">Proformas</button>
+    <button class="contrast {% if vista_actual == 'area_total' %}active-view{% endif %}"
+            hx-get="{{ url_for('pricing', project_name=current_project, vista='area_total') }}"
+            hx-target="#pricing-content-wrapper"
+            hx-swap="innerHTML"
+            hx-include="[name='tipologia']">Área Total</button>
 </div>
 
-<!-- La parrilla se incluye aquí -->
 {% include '_grid_container.html' %}
