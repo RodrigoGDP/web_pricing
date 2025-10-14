@@ -6,19 +6,21 @@ from flask import Flask, render_template, request, redirect, url_for
 app = Flask(__name__)
 DB_NAME = "database.db"
 
+# --- INICIO DE LA SOLUCIÓN ---
+@app.route('/')
+def index():
+    # Redirige a la página de precios de un proyecto por defecto (ej. "STILL")
+    # Puedes cambiar "STILL" por cualquier otro de tus proyectos válidos.
+    return redirect(url_for('pricing', project_name='STILL'))
+# --- FIN DE LA SOLUCIÓN ---
+
 # --- 2. FILTRO DE MONEDA PERSONALIZADO ---
 @app.template_filter('currency')
 def format_currency(value):
     if value is None: return "$0"
     return f"${value:,.0f}"
 
-# --- 3. DATOS DE PRUEBA PARA EL DASHBOARD ORIGINAL ---
-layout_overview_data = {
-    "Tipo 1": {"sold_percentage": 42.8, "average_price": 358},
-    "Tipo 5": {"sold_percentage": 52.5, "average_price": 324},
-    "Tipo 8": {"sold_percentage": 61.2, "average_price": 317},
-    "Tipo 11": {"sold_percentage": 50.4, "average_price": 302},
-}
+# --- SE ELIMINA EL DICCIONARIO layout_overview_data ---
 
 # --- 4. FUNCIÓN AUXILIAR PARA LA BASE DE DATOS ---
 def get_db_connection():
@@ -26,14 +28,7 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- 5. RUTAS DEL DASHBOARD ORIGINAL ---
-@app.route('/')
-def dashboard():
-    return render_template('index.html', data={}, layout_data=layout_overview_data)
-
-@app.route('/update-price/<layout_type>', methods=['POST'])
-def update_price(layout_type):
-    return "OK"
+# --- SE ELIMINAN LAS RUTAS ANTIGUAS DEL DASHBOARD ---
 
 # --- 6. RUTA DE REDIRECCIÓN PARA LA PARRILLA ---
 @app.route('/pricing')
