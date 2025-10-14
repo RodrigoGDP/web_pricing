@@ -136,11 +136,15 @@ def pricing(project_name):
     sorted_grid_data = {floor: grid_data[floor] for floor in sorted_floors}
     max_columns = max(len(units) for units in sorted_grid_data.values()) if sorted_grid_data else 0
 
+    # --- INICIO DE LA CORRECCIÓN ---
     if request.headers.get('HX-Request') == 'true':
         return render_template('_filters_and_grid.html',
                                grid=sorted_grid_data, all_tipologias=all_tipologias,
                                current_project=project_name, tipologia_filtro=tipologia_filtro,
-                               vista_actual=vista_actual, max_columns=max_columns)
+                               vista_actual=vista_actual, max_columns=max_columns,
+                               # AÑADIR LAS VARIABLES FALTANTES
+                               approval_table_data=approval_table_data,
+                               legend_data=legend_data)
     else:
         return render_template('pricing_grid.html', 
                                grid=sorted_grid_data, all_tipologias=all_tipologias,
@@ -149,6 +153,7 @@ def pricing(project_name):
                                max_columns=max_columns,
                                approval_table_data=approval_table_data,
                                legend_data=legend_data)
+    # --- FIN DE LA CORRECCIÓN ---
 
 # --- 8. INICIO DE LA APLICACIÓN ---
 if __name__ == '__main__':
