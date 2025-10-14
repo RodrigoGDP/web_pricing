@@ -1,44 +1,34 @@
 <!-- Este es el contenedor de la parrilla que se actualizará con HTMX -->
 <div class="grid-container">
-  {% for piso, unidades_en_piso in grid.items() %}
-  <div class="floor-label">P{{ piso }}</div>
+  {% for floor, units in grid.items() %}
+  <div class="floor-label">{{ floor }}</div>
   <div
     class="units-container"
     style="grid-template-columns: repeat({{ max_columns }}, 1fr);"
   >
-    {% for unit in unidades_en_piso %}
-    <div
-      class="unidad {{ unit.css_class }}
-                    {% if unit.estado_comercial|lower == 'vendido' %} vendido
-                    {% elif unit.alerta_status == 'subir_precio' %} alerta-subir
-                    {% else %} disponible
-                    {% endif %}"
-    >
-      {% if vista_actual == 'proformas' %}
-      <span class="unit-content">{{ unit.proformas_count }}</span>
-      {% elif vista_actual == 'codigo' %}
-      <span class="unit-content">{{ unit.codigo }}</span>
-      {% elif vista_actual == 'area_total' %}
-      <span class="unit-content">{{ unit.area_techada }} m²</span>
-      {% else %} {# Default to 'precio' #} {% if unit.estado_comercial|lower ==
-      'vendido' %}
-      <!-- CAMBIO: Muestra el precio de venta en lugar de 'SOLD' -->
-      <span class="unit-content">{{ unit.precio_venta|currency }}</span>
-      {% else %}
-      <span class="unit-content">
-        {{ unit.precio_lista|currency }} {% if unit.alerta_status ==
-        'subir_precio' %}
-        <!-- CAMBIO: Se reemplaza el texto por un icono SVG -->
-        <svg
-          class="arrow-icon"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 14 12"
-        >
-          <path d="M7 0l7 12H0z" />
-        </svg>
-        {% endif %}
-      </span>
-      {% endif %} {% endif %}
+    {% for unit in units %}
+    <!-- La lógica de clases ahora es correcta y usa display_status -->
+    <div class="unidad {{ unit.display_status }} {{ unit.css_class }}">
+      <div class="unit-content">
+        <!-- INICIO DE LÓGICA DE CONTENIDO CORREGIDA -->
+        {% if vista_actual == 'proformas' %}
+        <!-- CAMBIO: Se elimina el texto 'Proformas' y se deja solo el número -->
+        <span class="proforma-count">{{ unit.proformas_count }}</span>
+
+        {% elif vista_actual == 'codigo' %} {{ unit.codigo }} {% elif
+        vista_actual == 'area_total' %} {{ unit.area_techada }} m² {% else %} {#
+        Default to 'precio' view #} {% if unit.display_status == 'vendido' %}
+        <!-- Para unidades vendidas, muestra el precio de venta -->
+        {{ unit.precio_venta|currency }} {% else %}
+        <!-- Para todas las demás (disponible, alerta, separado), muestra el precio de lista -->
+        {{ unit.precio_lista|currency }}
+
+        <!-- Y si está en alerta, añade la flecha -->
+        {% if unit.display_status == 'alerta-subir' %}
+        <span class="arrow-icon">↑</span>
+        {% endif %} {% endif %} {% endif %}
+        <!-- FIN DE LÓGICA DE CONTENIDO CORREGIDA -->
+      </div>
     </div>
     {% endfor %}
   </div>

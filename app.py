@@ -70,11 +70,15 @@ def pricing(project_name):
         sold_percentage = (sold_units / total_units * 100) if total_units > 0 else 0
         if sold_percentage >= 20.0:
             for u in units_in_tipo:
-                if u['estado_comercial'].lower() != 'vendido':
+                # --- LÓGICA DE ALERTA CORREGIDA ---
+                # La alerta solo debe aplicar a unidades DISPONIBLES, no a las separadas.
+                estado_lower = u['estado_comercial'].lower()
+                if estado_lower not in ['vendido', 'separado', 'proceso de separacion']:
                     unidades_con_alerta.add(u['codigo'])
 
     approval_table_data = []
-    legend_data = {'red': 0, 'green': 0, 'gray': 0}
+    # AÑADIDO: 'yellow' para el nuevo estado 'Separado'
+    legend_data = {'red': 0, 'green': 0, 'gray': 0, 'yellow': 0}
     
     for tipologia_name, units_in_tipo in tipologias_data_grouped.items():
         total_proformas = sum(u['proformas_count'] for u in units_in_tipo)
@@ -93,17 +97,38 @@ def pricing(project_name):
 
     grid_data = {}
     for unit in units_from_db:
-        if unit['estado_comercial'].lower() == 'vendido': legend_data['gray'] += 1
-        elif unit['codigo'] in unidades_con_alerta: legend_data['red'] += 1
-        else: legend_data['green'] += 1
+        # --- LÓGICA DE ESTADO CORREGIDA Y REORDENADA ---
+        estado_lower = unit['estado_comercial'].lower()
+        display_status = ''
+        
+        # 1. Primero, los estados comerciales fijos tienen la máxima prioridad.
+        if estado_lower == 'vendido':
+            legend_data['gray'] += 1
+            display_status = 'vendido'
+        elif estado_lower in ['separado', 'proceso de separacion']:
+            legend_data['yellow'] += 1
+            display_status = 'separado'
+        
+        # 2. Solo si no es vendido ni separado, comprobamos si tiene alerta.
+        elif unit['codigo'] in unidades_con_alerta:
+            legend_data['red'] += 1
+            display_status = 'alerta-subir'
+            
+        # 3. Si no cumple ninguna de las anteriores, está disponible.
+        else:
+            legend_data['green'] += 1
+            display_status = 'disponible'
+        # --- FIN DE LÓGICA CORREGIDA ---
+
         piso = unit['piso']
         if piso not in grid_data: grid_data[piso] = []
-        alerta_status = 'subir_precio' if unit['codigo'] in unidades_con_alerta else 'normal'
+        
         css_class = 'difuminado' if tipologia_filtro and unit['nombre_tipologia'] != tipologia_filtro else ''
         processed_unit = {
             'codigo': unit['codigo'], 'estado_comercial': unit['estado_comercial'],
             'precio_venta': unit['precio_venta'], 'precio_lista': unit['precio_lista'],
-            'nombre_tipologia': unit['nombre_tipologia'], 'alerta_status': alerta_status,
+            'nombre_tipologia': unit['nombre_tipologia'], 
+            'display_status': display_status, # CAMBIADO: de 'alerta_status' a 'display_status'
             'proformas_count': unit['proformas_count'], 'css_class': css_class,
             'area_techada': unit['area_techada']
         }
