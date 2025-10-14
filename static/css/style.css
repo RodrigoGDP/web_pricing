@@ -48,28 +48,38 @@
 /* Filtros Secundarios */
 .secondary-filter-bar {
     display: flex;
-    justify-content: flex-end; /* Alinea los filtros a la derecha */
-    align-items: center;
+    gap: 1px; /* CAMBIO: Añade la separación de 1px entre botones */
     margin-bottom: 1.5rem;
+    align-items: center;
 }
 .filter-group {
     display: flex;
-    gap: 0.75rem;
+    gap: 1px; /* CAMBIO: Se ajusta el gap para que coincida */
     align-items: center;
 }
+
+/* CAMBIO: Estilo unificado y rediseñado para los filtros */
 .secondary-filter-bar select, .secondary-filter-bar button {
     margin-bottom: 0;
-    background-color: #2d3748 !important; /* Estilo oscuro */
-    border: 1px solid #4a5568 !important;
-    color: #edf2f7 !important;
-    padding: 0.5rem 1rem;
+    background-color: #f8f9fa; /* Fondo gris claro */
+    border: 1px solid #dee2e6; /* Borde sutil */
+    padding: 0.375rem 0.75rem; /* Reduce el tamaño (más chico) */
+    font-size: 0.9rem;
+    color: #212529;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
 }
+
+/* CAMBIO: Estilo para el botón de vista activo (fondo blanco) */
 .secondary-filter-bar button.active-view {
-    background-color: #4a5568 !important;
-    border-color: #718096 !important;
+    background-color: #ffffff; /* Fondo blanco para el botón seleccionado */
+    color: #000;
+    border-color: #adb5bd;
 }
+
 .secondary-filter-bar select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a0aec0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    /* Se eliminan los estilos de flecha personalizados para un look más limpio */
 }
 
 /* Parrilla */

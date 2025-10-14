@@ -1,7 +1,8 @@
 <!-- Este es el contenedor de la parrilla que se actualizará con HTMX -->
 <div class="grid-container">
   {% for floor, units in grid.items() %}
-  <div class="floor-label">{{ floor }}</div>
+  <!-- CAMBIO: Se añade la 'P' antes del número del piso -->
+  <div class="floor-label">P{{ floor }}</div>
   <div
     class="units-container"
     style="grid-template-columns: repeat({{ max_columns }}, 1fr);"
