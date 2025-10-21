@@ -53,36 +53,7 @@
 {% endblock %}
 
 {% block sidebar %}
-<div class="legend-container">
-    <h3>Alerta Unidades</h3>
-    <div class="legend-item">
-        <span class="color-box red"></span>
-        <div class="legend-text">
-            <span>{{ legend_data.red }}</span>
-            <small>Actualizar Pricing</small>
-        </div>
-    </div>
-    <div class="legend-item">
-        <span class="color-box green"></span>
-        <div class="legend-text">
-            <span>{{ legend_data.green }}</span>
-            <small>Mantener Pricing</small>
-        </div>
-    </div>
-    <!-- NUEVO: Leyenda para el estado 'Separado' -->
-    <div class="legend-item">
-        <span class="color-box yellow"></span>
-        <div class="legend-text">
-            <span>{{ legend_data.yellow }}</span>
-            <small>Unidades Separadas</small>
-        </div>
-    </div>
-    <div class="legend-item">
-        <span class="color-box gray"></span>
-        <div class="legend-text">
-            <span>{{ legend_data.gray }}</span>
-            <small>Unidades Vendidas</small>
-        </div>
-    </div>
+<div id="sidebar-stats">
+    {% include '_sidebar_stats.html' %}
 </div>
 {% endblock %}

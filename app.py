@@ -28,6 +28,15 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+# --- FUNCIÓN AUXILIAR PARA ACCESO SEGURO A ROWS ---
+def safe_get(row, key, default=None):
+    """Acceso seguro a las claves de sqlite3.Row"""
+    try:
+        value = row[key]
+        return value if value is not None else default
+    except (KeyError, IndexError):
+        return default
+
 # --- SE ELIMINAN LAS RUTAS ANTIGUAS DEL DASHBOARD ---
 
 # --- 6. RUTA DE REDIRECCIÓN PARA LA PARRILLA ---
@@ -44,7 +53,7 @@ def pricing_redirect():
 # --- 7. RUTA PRINCIPAL PARA LA PARRILLA DE PRECIOS ---
 @app.route('/pricing/<project_name>')
 def pricing(project_name):
-    tipologia_filtro = request.args.get('tipologia')
+    tipologia_filtro = request.args.getlist('tipologia')
     vista_actual = request.args.get('vista', 'precio')
     
     conn = get_db_connection()
@@ -55,33 +64,47 @@ def pricing(project_name):
     if not units_from_db:
         return render_template('pricing_grid.html', grid={}, all_tipologias=[], all_projects=all_projects, current_project=project_name, approval_table_data=[], legend_data={'red': 0, 'green': 0, 'gray': 0})
 
-    all_tipologias = sorted(list(set(u['nombre_tipologia'] for u in units_from_db)))
+    all_tipologias = sorted(list(set(safe_get(u, 'nombre_tipologia', '') for u in units_from_db if safe_get(u, 'nombre_tipologia'))))
     
-    tipologias_data_grouped = {t: [u for u in units_from_db if u['nombre_tipologia'] == t] for t in all_tipologias}
+    tipologias_data_grouped = {t: [u for u in units_from_db if safe_get(u, 'nombre_tipologia', '') == t] for t in all_tipologias}
     unidades_con_alerta = set()
     for tipologia, units_in_tipo in tipologias_data_grouped.items():
         total_units = len(units_in_tipo)
-        sold_units = sum(1 for u in units_in_tipo if u['estado_comercial'].lower() == 'vendido')
+        sold_units = sum(1 for u in units_in_tipo if (safe_get(u, 'estado_comercial', '') or '').lower() == 'vendido')
         sold_percentage = (sold_units / total_units * 100) if total_units > 0 else 0
         if sold_percentage >= 20.0:
             for u in units_in_tipo:
                 # --- LÓGICA DE ALERTA CORREGIDA ---
                 # La alerta solo debe aplicar a unidades DISPONIBLES, no a las separadas.
-                estado_lower = u['estado_comercial'].lower()
+                estado_lower = (safe_get(u, 'estado_comercial', '') or '').lower()
                 if estado_lower not in ['vendido', 'separado', 'proceso de separacion']:
-                    unidades_con_alerta.add(u['codigo'])
+                    unidades_con_alerta.add(safe_get(u, 'codigo', ''))
 
     approval_table_data = []
     # AÑADIDO: 'yellow' para el nuevo estado 'Separado'
     legend_data = {'red': 0, 'green': 0, 'gray': 0, 'yellow': 0}
     
+    # Calcular estadísticas dinámicas basadas en filtros de tipologías
+    filtered_units = units_from_db
+    if tipologia_filtro and '' not in tipologia_filtro:
+        # Si hay filtros específicos, filtrar las unidades
+        filtered_units = [u for u in units_from_db if safe_get(u, 'nombre_tipologia', '') in tipologia_filtro]
+    
+    # Calcular estadísticas para el sidebar
+    sidebar_stats = {
+        'total_unidades': len(filtered_units),
+        'suma_precio': sum(safe_get(u, 'precio_venta', 0) or 0 for u in filtered_units),
+        'suma_area_total': sum(safe_get(u, 'area_techada', 0) or 0 for u in filtered_units),
+        'suma_proformas': sum(safe_get(u, 'proformas_count', 0) or 0 for u in filtered_units)
+    }
+    
     for tipologia_name, units_in_tipo in tipologias_data_grouped.items():
-        total_proformas = sum(u['proformas_count'] for u in units_in_tipo)
-        precios_m2 = [u['precio_m2'] for u in units_in_tipo if u['precio_m2'] > 0]
+        total_proformas = sum(safe_get(u, 'proformas_count', 0) or 0 for u in units_in_tipo)
+        precios_m2 = [safe_get(u, 'precio_m2', 0) or 0 for u in units_in_tipo if safe_get(u, 'precio_m2', 0) and safe_get(u, 'precio_m2', 0) > 0]
         avg_precio_m2 = sum(precios_m2) / len(precios_m2) if precios_m2 else 0
         total_count = len(units_in_tipo)
-        available_count = sum(1 for u in units_in_tipo if u['estado_comercial'].lower() != 'vendido')
-        has_alert = any(u['codigo'] in unidades_con_alerta for u in units_in_tipo)
+        available_count = sum(1 for u in units_in_tipo if safe_get(u, 'estado_comercial', '').lower() != 'vendido')
+        has_alert = any(safe_get(u, 'codigo', '') in unidades_con_alerta for u in units_in_tipo)
         approval_table_data.append({
             'tipologia': tipologia_name,
             'unidades_disponibles_str': f"{available_count}/{total_count}",
@@ -93,7 +116,7 @@ def pricing(project_name):
     grid_data = {}
     for unit in units_from_db:
         # --- LÓGICA DE ESTADO CORREGIDA Y REORDENADA ---
-        estado_lower = unit['estado_comercial'].lower()
+        estado_lower = (safe_get(unit, 'estado_comercial', '') or '').lower()
         display_status = ''
         
         # 1. Primero, los estados comerciales fijos tienen la máxima prioridad.
@@ -105,7 +128,7 @@ def pricing(project_name):
             display_status = 'separado'
         
         # 2. Solo si no es vendido ni separado, comprobamos si tiene alerta.
-        elif unit['codigo'] in unidades_con_alerta:
+        elif safe_get(unit, 'codigo', '') in unidades_con_alerta:
             legend_data['red'] += 1
             display_status = 'alerta-subir'
             
@@ -115,17 +138,27 @@ def pricing(project_name):
             display_status = 'disponible'
         # --- FIN DE LÓGICA CORREGIDA ---
 
-        piso = unit['piso']
+        piso = safe_get(unit, 'piso', '')
         if piso not in grid_data: grid_data[piso] = []
         
-        css_class = 'difuminado' if tipologia_filtro and unit['nombre_tipologia'] != tipologia_filtro else ''
+        # Lógica de filtrado mejorada
+        if not tipologia_filtro or '' in tipologia_filtro:
+            # Si no hay filtro o se seleccionó "Todas", no difuminar
+            css_class = ''
+        else:
+            # Si hay filtros específicos, difuminar las que no están seleccionadas
+            css_class = 'difuminado' if safe_get(unit, 'nombre_tipologia', '') not in tipologia_filtro else ''
         processed_unit = {
-            'codigo': unit['codigo'], 'estado_comercial': unit['estado_comercial'],
-            'precio_venta': unit['precio_venta'], 'precio_lista': unit['precio_lista'],
-            'nombre_tipologia': unit['nombre_tipologia'], 
+            'codigo': safe_get(unit, 'codigo', ''), 
+            'estado_comercial': safe_get(unit, 'estado_comercial', ''),
+            'precio_venta': safe_get(unit, 'precio_venta', 0) or 0, 
+            'precio_lista': safe_get(unit, 'precio_lista', 0) or 0,
+            'precio_m2': safe_get(unit, 'precio_m2', 0) or 0, 
+            'nombre_tipologia': safe_get(unit, 'nombre_tipologia', ''), 
             'display_status': display_status, # CAMBIADO: de 'alerta_status' a 'display_status'
-            'proformas_count': unit['proformas_count'], 'css_class': css_class,
-            'area_techada': unit['area_techada']
+            'proformas_count': safe_get(unit, 'proformas_count', 0) or 0, 
+            'css_class': css_class,
+            'area_techada': safe_get(unit, 'area_techada', 0) or 0
         }
         grid_data[piso].append(processed_unit)
 
@@ -138,13 +171,24 @@ def pricing(project_name):
 
     # --- INICIO DE LA CORRECCIÓN ---
     if request.headers.get('HX-Request') == 'true':
-        return render_template('_filters_and_grid.html',
-                               grid=sorted_grid_data, all_tipologias=all_tipologias,
-                               current_project=project_name, tipologia_filtro=tipologia_filtro,
-                               vista_actual=vista_actual, max_columns=max_columns,
-                               # AÑADIR LAS VARIABLES FALTANTES
-                               approval_table_data=approval_table_data,
-                               legend_data=legend_data)
+        # Si el target es solo el grid, devolver solo el grid
+        if request.headers.get('HX-Target') == 'grid-container':
+            return render_template('_grid_only.html',
+                                   grid=sorted_grid_data, vista_actual=vista_actual, 
+                                   max_columns=max_columns)
+        # Si el target es el sidebar, devolver solo el sidebar
+        elif request.headers.get('HX-Target') == 'sidebar-stats':
+            return render_template('_sidebar_stats.html',
+                                   legend_data=legend_data, sidebar_stats=sidebar_stats)
+        else:
+            # Si no, devolver todo el contenido de filtros y grid
+            return render_template('_grid_and_sidebar.html',
+                                   grid=sorted_grid_data, all_tipologias=all_tipologias,
+                                   current_project=project_name, tipologia_filtro=tipologia_filtro,
+                                   vista_actual=vista_actual, max_columns=max_columns,
+                                   # AÑADIR LAS VARIABLES FALTANTES
+                                   approval_table_data=approval_table_data,
+                                   legend_data=legend_data, sidebar_stats=sidebar_stats)
     else:
         return render_template('pricing_grid.html', 
                                grid=sorted_grid_data, all_tipologias=all_tipologias,
@@ -152,7 +196,7 @@ def pricing(project_name):
                                tipologia_filtro=tipologia_filtro, vista_actual=vista_actual,
                                max_columns=max_columns,
                                approval_table_data=approval_table_data,
-                               legend_data=legend_data)
+                               legend_data=legend_data, sidebar_stats=sidebar_stats)
     # --- FIN DE LA CORRECCIÓN ---
 
 # --- 8. INICIO DE LA APLICACIÓN ---

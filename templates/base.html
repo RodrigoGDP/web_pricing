@@ -49,5 +49,48 @@
         {% block sidebar %}{% endblock %}
       </aside>
     </div>
+
+    <script>
+      function toggleDropdown() {
+        const dropdown = document.getElementById("tipologia-dropdown");
+        dropdown.classList.toggle("show");
+      }
+
+      function handleAllCheckbox(checkbox) {
+        const individualCheckboxes = document.querySelectorAll(
+          'input[name="tipologia"][value!=""]'
+        );
+        if (checkbox.checked) {
+          individualCheckboxes.forEach((cb) => (cb.checked = false));
+        }
+        // Mantener el dropdown abierto
+        event.stopPropagation();
+      }
+
+      function handleIndividualCheckbox(checkbox) {
+        const allCheckbox = document.getElementById("all-tipologias");
+        if (checkbox.checked) {
+          allCheckbox.checked = false;
+        }
+        // Mantener el dropdown abierto
+        event.stopPropagation();
+      }
+
+      // Cerrar dropdown al hacer clic fuera
+      window.onclick = function (event) {
+        const dropdown = document.getElementById("tipologia-dropdown");
+        const dropdownContainer = document.querySelector(".dropdown-container");
+
+        // Solo cerrar si el clic no es dentro del dropdown ni en el botón toggle
+        if (
+          !dropdownContainer.contains(event.target) &&
+          !event.target.matches(".dropdown-toggle")
+        ) {
+          if (dropdown.classList.contains("show")) {
+            dropdown.classList.remove("show");
+          }
+        }
+      };
+    </script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-<!-- Este es el contenedor de la parrilla que se actualizará con HTMX -->
+<!-- Este es solo el contenedor de la parrilla que se actualizará con HTMX -->
 <div class="grid-container" id="grid-container">
   {% for floor, units in grid.items() %}
   <!-- CAMBIO: Se añade la 'P' antes del número del piso -->
@@ -17,7 +17,7 @@
         <span class="proforma-count">{{ unit.proformas_count }}</span>
 
         {% elif vista_actual == 'codigo' %} {{ unit.codigo }} {% elif
-        vista_actual == 'precio_m2' %} {{ unit.precio_m2|currency }} {% elif
+        vista_actual == 'precio_m2' %} {{ unit.precio_m2|currency }}/m² {% elif
         vista_actual == 'area_total' %} {{ unit.area_techada }} m² {% else %} {#
         Default to 'precio' view #} {% if unit.display_status == 'vendido' %}
         <!-- Para unidades vendidas, muestra el precio de venta -->

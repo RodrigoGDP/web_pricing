@@ -1,0 +1,72 @@
+<div class="sidebar-stats-container">
+  <div class="stats-table">
+    <div class="stats-header">
+      <div class="stats-cell">Unidades</div>
+      <div class="stats-cell">Precio</div>
+      <div class="stats-cell">Área Total</div>
+      <div class="stats-cell">Proformas</div>
+    </div>
+    <div class="stats-row">
+      <div class="stats-cell">
+        <span class="color-box red"></span>
+        <div class="stats-text">
+          <span>{{ legend_data.red }}</span>
+          <small>Actualizar</small>
+        </div>
+      </div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+    </div>
+    <div class="stats-row">
+      <div class="stats-cell">
+        <span class="color-box green"></span>
+        <div class="stats-text">
+          <span>{{ legend_data.green }}</span>
+          <small>Mantener</small>
+        </div>
+      </div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+    </div>
+    <div class="stats-row">
+      <div class="stats-cell">
+        <span class="color-box yellow"></span>
+        <div class="stats-text">
+          <span>{{ legend_data.yellow }}</span>
+          <small>Separadas</small>
+        </div>
+      </div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+    </div>
+    <div class="stats-row">
+      <div class="stats-cell">
+        <span class="color-box gray"></span>
+        <div class="stats-text">
+          <span>{{ legend_data.gray }}</span>
+          <small>Vendidas</small>
+        </div>
+      </div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+      <div class="stats-cell">-</div>
+    </div>
+    <div class="stats-total">
+      <div class="stats-cell total-cell">
+        <strong>Total: {{ sidebar_stats.total_unidades }}</strong>
+      </div>
+      <div class="stats-cell total-cell">
+        <strong>{{ sidebar_stats.suma_precio|currency }}</strong>
+      </div>
+      <div class="stats-cell total-cell">
+        <strong>{{ "%.0f"|format(sidebar_stats.suma_area_total) }} m²</strong>
+      </div>
+      <div class="stats-cell total-cell">
+        <strong>{{ sidebar_stats.suma_proformas }}</strong>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,49 @@
+<!-- Este template contiene tanto el grid como el sidebar actualizado -->
+<div class="main-layout-grid">
+  <main class="main-content">
+    <div id="pricing-content-wrapper">
+      {% include '_filters_and_grid.html' %}
+    </div>
+
+    <div class="approval-table-container">
+      <h3>Proformas por tipología</h3>
+      <table class="approval-table">
+        <thead>
+          <tr>
+            <th>Tipología</th>
+            <th>Unidades disponibles</th>
+            <th>Número de proformas</th>
+            <th>Precio prom actual</th>
+            <th>Precio prom mercado</th>
+            <th>Precio prom sugerido</th>
+            <th>Triggers</th>
+            <th>Aprobación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in approval_table_data %}
+          <tr class="{% if row.has_alert %}highlight-red{% endif %}">
+            <td>{{ row.tipologia }}</td>
+            <td>{{ row.unidades_disponibles_str }}</td>
+            <td>{{ row.total_proformas }}</td>
+            <td>{{ row.avg_precio_m2|currency }}</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>
+              <select>
+                <option>Modificar</option>
+                <option>Aprobar</option>
+                <option>Rechazado</option>
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+  <aside class="sidebar-placeholder">
+    <div id="sidebar-stats">{% include '_sidebar_stats.html' %}</div>
+  </aside>
+</div>
