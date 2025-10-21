@@ -108,7 +108,11 @@ def pricing(project_name):
     # Calcular estadísticas para el sidebar basadas en unidades filtradas
     sidebar_stats = {
         'total_unidades': len(filtered_units),
-        'suma_precio': sum(safe_get(u, 'precio_venta', 0) or 0 for u in filtered_units),
+        'suma_precio': sum(
+            (safe_get(u, 'precio_venta', 0) or 0) if (safe_get(u, 'estado_comercial', '') or '').lower() == 'vendido' 
+            else (safe_get(u, 'precio_lista', 0) or 0) 
+            for u in filtered_units
+        ),
         'suma_area_total': sum(safe_get(u, 'area_techada', 0) or 0 for u in filtered_units),
         'suma_proformas': sum(safe_get(u, 'proformas_count', 0) or 0 for u in filtered_units)
     }
@@ -125,7 +129,7 @@ def pricing(project_name):
     # Procesar cada unidad filtrada para calcular estadísticas por estado
     for unit in filtered_units:
         estado_lower = (safe_get(unit, 'estado_comercial', '') or '').lower()
-        precio = safe_get(unit, 'precio_venta', 0) or 0
+        precio = (safe_get(unit, 'precio_venta', 0) or 0) if estado_lower == 'vendido' else (safe_get(unit, 'precio_lista', 0) or 0)
         area = safe_get(unit, 'area_techada', 0) or 0
         proformas = safe_get(unit, 'proformas_count', 0) or 0
         
