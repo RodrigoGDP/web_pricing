@@ -1,8 +1,10 @@
 import sqlite3
 import csv
+from collections import defaultdict
 
 DB_NAME = "database.db"
 CSV_NAME = "unidades.csv"
+PROFORMA_CSV_NAME = "proforma_unidad.csv"
 PROYECTOS_VALIDOS = ["STILL", "COS", "PS", "ANG", "NUN"]
 
 conn = sqlite3.connect(DB_NAME)
@@ -22,6 +24,21 @@ cursor.execute("""
 """)
 print("Tabla 'unidades' creada con todas las columnas.")
 
+# Leer proforma_unidad.csv y contar proformas por codigo_unidad
+print(f"Leyendo proformas desde '{PROFORMA_CSV_NAME}'...")
+proformas_por_unidad = defaultdict(int)
+try:
+    with open(PROFORMA_CSV_NAME, 'r', encoding='utf-8') as proforma_file:
+        proforma_reader = csv.DictReader(proforma_file)
+        for proforma_row in proforma_reader:
+            codigo_unidad = proforma_row.get('codigo_unidad', '').strip()
+            if codigo_unidad:
+                proformas_por_unidad[codigo_unidad] += 1
+    print(f"Se encontraron proformas para {len(proformas_por_unidad)} unidades.")
+except FileNotFoundError:
+    print(f"ADVERTENCIA: No se encontró el archivo '{PROFORMA_CSV_NAME}'. Se usará 0 proformas para todas las unidades.")
+    proformas_por_unidad = defaultdict(int)
+
 try:
     with open(CSV_NAME, 'r', encoding='utf-8') as csvfile:
         csv_reader = csv.DictReader(csvfile)
@@ -36,8 +53,9 @@ try:
             except (ValueError, TypeError):
                 continue
 
-            proforma_codes = row.get('codigo_proforma', '')
-            proformas_count = len(proforma_codes.split(',')) if proforma_codes and not proforma_codes.isspace() else 0
+            # NUEVO: Obtener el conteo de proformas desde proforma_unidad.csv
+            codigo_unidad = row['codigo']
+            proformas_count = proformas_por_unidad.get(codigo_unidad, 0)
 
             try:
                 precio_venta_float = float(row.get('precio_venta') or '0')
@@ -46,9 +64,6 @@ try:
                 area_techada_float = float(row.get('area_techada') or '0')
             except (ValueError, TypeError):
                 precio_venta_float, precio_lista_float, precio_m2_float, area_techada_float = 0.0, 0.0, 0.0, 0.0
-            
-            # CAMBIO CRÍTICO: Volvemos a usar la columna 'codigo' del CSV
-            codigo_unidad = row['codigo']
 
             unidad = (
                 codigo_unidad, row['nombre'], row['estado_comercial'],
