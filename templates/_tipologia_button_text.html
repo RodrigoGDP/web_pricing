@@ -1,0 +1,3 @@
+{% if tipologia_filtro %} {% if tipologia_filtro|length == 1 %} {{
+tipologia_filtro[0] }} {% else %} {{ tipologia_filtro|length }} tipologías
+seleccionadas {% endif %} {% else %} Todas las Tipologías {% endif %}

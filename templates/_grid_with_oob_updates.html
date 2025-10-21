@@ -1,38 +1,39 @@
-<!-- Este es solo el contenedor de la parrilla que se actualizará con HTMX -->
+<!-- Grid principal -->
 <div class="grid-container" id="grid-container">
   {% for floor, units in grid.items() %}
-  <!-- CAMBIO: Se añade la 'P' antes del número del piso -->
   <div class="floor-label">P{{ floor }}</div>
   <div
     class="units-container"
     style="grid-template-columns: repeat({{ max_columns }}, 1fr);"
   >
     {% for unit in units %}
-    <!-- La lógica de clases ahora es correcta y usa display_status -->
     <div class="unidad {{ unit.display_status }} {{ unit.css_class }}">
       <div class="unit-content">
-        <!-- INICIO DE LÓGICA DE CONTENIDO CORREGIDA -->
         {% if vista_actual == 'proformas' %}
-        <!-- CAMBIO: Se elimina el texto 'Proformas' y se deja solo el número -->
         <span class="proforma-count">{{ unit.proformas_count }}</span>
-
         {% elif vista_actual == 'codigo' %} {{ unit.codigo }} {% elif
         vista_actual == 'precio_m2' %} {{ unit.precio_m2|currency }} {% elif
         vista_actual == 'area_total' %} {{ unit.area_techada }} m² {% else %} {#
-        Default to 'precio' view #} {% if unit.display_status == 'vendido' %}
-        <!-- Para unidades vendidas, muestra el precio de venta -->
-        {{ unit.precio_venta|currency }} {% else %}
-        <!-- Para todas las demás (disponible, alerta, separado), muestra el precio de lista -->
-        {{ unit.precio_lista|currency }}
-
-        <!-- Y si está en alerta, añade la flecha -->
-        {% if unit.display_status == 'alerta-subir' %}
+        Default to 'precio' view #} {% if unit.display_status == 'vendido' %} {{
+        unit.precio_venta|currency }} {% else %} {{ unit.precio_lista|currency
+        }} {% if unit.display_status == 'alerta-subir' %}
         <span class="arrow-icon">↑</span>
         {% endif %} {% endif %} {% endif %}
-        <!-- FIN DE LÓGICA DE CONTENIDO CORREGIDA -->
       </div>
     </div>
     {% endfor %}
   </div>
   {% endfor %}
 </div>
+
+<!-- Actualización out-of-band del sidebar -->
+<div id="sidebar-stats" hx-swap-oob="innerHTML">
+  {% include '_sidebar_stats.html' %}
+</div>
+
+<!-- Actualización out-of-band del texto del botón -->
+<span id="tipologia-button-text" hx-swap-oob="innerHTML">
+  {% if tipologia_filtro %} {% if tipologia_filtro|length == 1 %} {{
+  tipologia_filtro[0] }} {% else %} {{ tipologia_filtro|length }} tipologías
+  seleccionadas {% endif %} {% else %} Todas las Tipologías {% endif %}
+</span>

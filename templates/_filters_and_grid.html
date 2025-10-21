@@ -1,9 +1,12 @@
 <div class="secondary-filter-bar">
   <div class="dropdown-container">
     <button class="dropdown-toggle" type="button" onclick="toggleDropdown()">
-      {% if tipologia_filtro %} {% if tipologia_filtro|length == 1 %} {{
-      tipologia_filtro[0] }} {% else %} {{ tipologia_filtro|length }} tipologías
-      seleccionadas {% endif %} {% else %} Todas las Tipologías {% endif %}
+      <span id="tipologia-button-text">
+        {% if tipologia_filtro %} {% if tipologia_filtro|length == 1 %} {{
+        tipologia_filtro[0] }} {% else %} {{ tipologia_filtro|length }}
+        tipologías seleccionadas {% endif %} {% else %} Todas las Tipologías {%
+        endif %}
+      </span>
       <span class="dropdown-arrow">▼</span>
     </button>
     <div class="dropdown-content" id="tipologia-dropdown">
@@ -12,8 +15,7 @@
         hx-target="#grid-container"
         hx-trigger="change from:input[type='checkbox']"
         hx-swap="innerHTML"
-        hx-include="[name='vista']"
-        hx-on::after-swap="htmx.ajax('GET', this.getAttribute('hx-get') + '&' + new URLSearchParams(new FormData(this)).toString(), {target:'#sidebar-stats', swap:'innerHTML'})"
+        hx-include="[name='vista'], [name='tipologia']"
       >
         <div class="checkbox-item">
           <input

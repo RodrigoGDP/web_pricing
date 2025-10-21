@@ -71,6 +71,8 @@ def pricing_redirect():
 @app.route('/pricing/<project_name>')
 def pricing(project_name):
     tipologia_filtro = request.args.getlist('tipologia')
+    # Limpiar la lista de tipologías (remover valores vacíos)
+    tipologia_filtro = [t for t in tipologia_filtro if t.strip()]
     vista_actual = request.args.get('vista', 'precio')
     
     conn = get_db_connection()
@@ -101,7 +103,7 @@ def pricing(project_name):
     
     # Calcular estadísticas dinámicas basadas en filtros de tipologías
     filtered_units = units_from_db
-    if tipologia_filtro and '' not in tipologia_filtro:
+    if tipologia_filtro:
         # Si hay filtros específicos, filtrar las unidades
         filtered_units = [u for u in units_from_db if safe_get(u, 'nombre_tipologia', '') in tipologia_filtro]
     
@@ -205,8 +207,8 @@ def pricing(project_name):
         if piso not in grid_data: grid_data[piso] = []
         
         # Lógica de filtrado mejorada
-        if not tipologia_filtro or '' in tipologia_filtro:
-            # Si no hay filtro o se seleccionó "Todas", no difuminar
+        if not tipologia_filtro:
+            # Si no hay filtro, no difuminar
             css_class = ''
         else:
             # Si hay filtros específicos, difuminar las que no están seleccionadas
@@ -252,14 +254,37 @@ def pricing(project_name):
 
     # --- INICIO DE LA CORRECCIÓN ---
     if request.headers.get('HX-Request') == 'true':
-        # Si el target es solo el grid, devolver solo el grid
-        if request.headers.get('HX-Target') == 'grid-container':
-            return render_template('_grid_only.html',
+        hx_target = request.headers.get('HX-Target', '')
+        
+        # Si el target es solo el grid, devolver el grid con actualizaciones OOB del sidebar y botón
+        if hx_target == 'grid-container':
+            return render_template('_grid_with_oob_updates.html',
                                    grid=sorted_grid_data, vista_actual=vista_actual, 
-                                   max_columns=max_columns)
+                                   max_columns=max_columns, tipologia_filtro=tipologia_filtro,
+                                   legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
         # Si el target es el sidebar, devolver solo el sidebar
-        elif request.headers.get('HX-Target') == 'sidebar-stats':
+        elif hx_target == 'sidebar-stats':
             return render_template('_sidebar_stats.html',
+                                   legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
+        # Si el target es el texto del botón de tipologías
+        elif hx_target == 'tipologia-button-text':
+            return render_template('_tipologia_button_text.html',
+                                   tipologia_filtro=tipologia_filtro)
+        # Si el target incluye pricing-content-wrapper y sidebar-stats (filtro de tipologías)
+        elif 'pricing-content-wrapper' in hx_target and 'sidebar-stats' in hx_target:
+            return render_template('_grid_and_sidebar.html',
+                                   grid=sorted_grid_data, all_tipologias=all_tipologias,
+                                   current_project=project_name, tipologia_filtro=tipologia_filtro,
+                                   vista_actual=vista_actual, max_columns=max_columns,
+                                   approval_table_data=approval_table_data,
+                                   legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
+        # Si el target incluye múltiples elementos (grid-container, sidebar-stats)
+        elif 'grid-container' in hx_target and 'sidebar-stats' in hx_target:
+            return render_template('_grid_and_sidebar.html',
+                                   grid=sorted_grid_data, all_tipologias=all_tipologias,
+                                   current_project=project_name, tipologia_filtro=tipologia_filtro,
+                                   vista_actual=vista_actual, max_columns=max_columns,
+                                   approval_table_data=approval_table_data,
                                    legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
         else:
             # Si no, devolver todo el contenido de filtros y grid
@@ -267,7 +292,6 @@ def pricing(project_name):
                                    grid=sorted_grid_data, all_tipologias=all_tipologias,
                                    current_project=project_name, tipologia_filtro=tipologia_filtro,
                                    vista_actual=vista_actual, max_columns=max_columns,
-                                   # AÑADIR LAS VARIABLES FALTANTES
                                    approval_table_data=approval_table_data,
                                    legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
     else:

@@ -60,9 +60,15 @@
         const individualCheckboxes = document.querySelectorAll(
           'input[name="tipologia"][value!=""]'
         );
+        const form = checkbox.closest("form");
+
         if (checkbox.checked) {
           individualCheckboxes.forEach((cb) => (cb.checked = false));
         }
+
+        // Disparar el evento change en el formulario para que HTMX lo detecte
+        form.dispatchEvent(new Event("change", { bubbles: true }));
+
         // Mantener el dropdown abierto
         event.stopPropagation();
       }
