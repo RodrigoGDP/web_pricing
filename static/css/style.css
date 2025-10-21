@@ -158,9 +158,7 @@
     border-color: #adb5bd;
 }
 
-.secondary-filter-bar select {
-    /* Se eliminan los estilos de flecha personalizados para un look más limpio */
-}
+/* Se eliminan los estilos de flecha personalizados para un look más limpio */
 
 /* Parrilla */
 .grid-container {
@@ -168,6 +166,7 @@
     grid-template-columns: 60px 1fr;
     gap: 10px 0;
     margin-bottom: 3rem;
+    width: 100%;
 }
 .floor-label {
     grid-column: 1 / 2;
@@ -180,11 +179,14 @@
     grid-column: 2 / -1;
     display: grid;
     gap: 8px;
+    min-width: 100%;
+    width: 100%;
 }
 .unidad {
     border: 1px solid #ccc;
     border-radius: 4px;
     min-height: 70px;
+    width: 100%;
     min-width: 100px;
     display: flex;
     justify-content: center;
@@ -206,6 +208,11 @@
 /* NUEVO: Estilo para el estado 'Separado' */
 .unidad.separado { background-color: #fff3cd; color: #664d03; border-color: #ffecb5; }
 .unidad.difuminado { opacity: 0.25; }
+.unidad.empty-unit { 
+    visibility: hidden; 
+    border: none;
+    background: transparent;
+}
 
 /* CORREGIDO: Estilo del ícono de la flecha */
 .arrow-icon {

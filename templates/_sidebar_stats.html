@@ -10,49 +10,85 @@
       <div class="stats-cell">
         <span class="color-box red"></span>
         <div class="stats-text">
-          <span>{{ legend_data.red }}</span>
+          <span>{{ legend_stats.red.unidades }}</span>
           <small>Actualizar</small>
         </div>
       </div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
+      <div class="stats-cell">
+        {{ legend_stats.red.precio|currency if legend_stats.red.precio > 0 else
+        '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ "%.0f"|format(legend_stats.red.area) + " m²" if legend_stats.red.area
+        > 0 else '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ legend_stats.red.proformas if legend_stats.red.proformas > 0 else '-'
+        }}
+      </div>
     </div>
     <div class="stats-row">
       <div class="stats-cell">
         <span class="color-box green"></span>
         <div class="stats-text">
-          <span>{{ legend_data.green }}</span>
+          <span>{{ legend_stats.green.unidades }}</span>
           <small>Mantener</small>
         </div>
       </div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
+      <div class="stats-cell">
+        {{ legend_stats.green.precio|currency if legend_stats.green.precio > 0
+        else '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ "%.0f"|format(legend_stats.green.area) + " m²" if
+        legend_stats.green.area > 0 else '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ legend_stats.green.proformas if legend_stats.green.proformas > 0 else
+        '-' }}
+      </div>
     </div>
     <div class="stats-row">
       <div class="stats-cell">
         <span class="color-box yellow"></span>
         <div class="stats-text">
-          <span>{{ legend_data.yellow }}</span>
+          <span>{{ legend_stats.yellow.unidades }}</span>
           <small>Separadas</small>
         </div>
       </div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
+      <div class="stats-cell">
+        {{ legend_stats.yellow.precio|currency if legend_stats.yellow.precio > 0
+        else '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ "%.0f"|format(legend_stats.yellow.area) + " m²" if
+        legend_stats.yellow.area > 0 else '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ legend_stats.yellow.proformas if legend_stats.yellow.proformas > 0
+        else '-' }}
+      </div>
     </div>
     <div class="stats-row">
       <div class="stats-cell">
         <span class="color-box gray"></span>
         <div class="stats-text">
-          <span>{{ legend_data.gray }}</span>
+          <span>{{ legend_stats.gray.unidades }}</span>
           <small>Vendidas</small>
         </div>
       </div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
-      <div class="stats-cell">-</div>
+      <div class="stats-cell">
+        {{ legend_stats.gray.precio|currency if legend_stats.gray.precio > 0
+        else '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ "%.0f"|format(legend_stats.gray.area) + " m²" if
+        legend_stats.gray.area > 0 else '-' }}
+      </div>
+      <div class="stats-cell">
+        {{ legend_stats.gray.proformas if legend_stats.gray.proformas > 0 else
+        '-' }}
+      </div>
     </div>
     <div class="stats-total">
       <div class="stats-cell total-cell">

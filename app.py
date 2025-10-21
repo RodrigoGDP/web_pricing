@@ -4,7 +4,31 @@ from flask import Flask, render_template, request, redirect, url_for
 
 # --- 1. INICIALIZACIÓN DE LA APLICACIÓN ---
 app = Flask(__name__)
+
+# Cache para max_columns por proyecto
+project_max_columns = {}
 DB_NAME = "database.db"
+
+def safe_get(row, key, default=None):
+    """Función auxiliar para obtener valores de sqlite3.Row de manera segura"""
+    try:
+        value = row[key]
+        return value if value is not None else default
+    except (KeyError, IndexError):
+        return default
+
+def get_max_columns_for_project(project_name, units_from_db):
+    """Obtiene el max_columns para un proyecto, usando cache si está disponible"""
+    if project_name not in project_max_columns:
+        # Calcular max_columns basado en TODAS las unidades del proyecto
+        grid_data_for_max_calc = {}
+        for unit in units_from_db:
+            piso = safe_get(unit, 'piso', '')
+            if piso not in grid_data_for_max_calc:
+                grid_data_for_max_calc[piso] = []
+            grid_data_for_max_calc[piso].append(unit)
+        project_max_columns[project_name] = max(len(units) for units in grid_data_for_max_calc.values()) if grid_data_for_max_calc else 0
+    return project_max_columns[project_name]
 
 # --- INICIO DE LA SOLUCIÓN ---
 @app.route('/')
@@ -29,13 +53,6 @@ def get_db_connection():
     return conn
 
 # --- FUNCIÓN AUXILIAR PARA ACCESO SEGURO A ROWS ---
-def safe_get(row, key, default=None):
-    """Acceso seguro a las claves de sqlite3.Row"""
-    try:
-        value = row[key]
-        return value if value is not None else default
-    except (KeyError, IndexError):
-        return default
 
 # --- SE ELIMINAN LAS RUTAS ANTIGUAS DEL DASHBOARD ---
 
@@ -81,8 +98,6 @@ def pricing(project_name):
                     unidades_con_alerta.add(safe_get(u, 'codigo', ''))
 
     approval_table_data = []
-    # AÑADIDO: 'yellow' para el nuevo estado 'Separado'
-    legend_data = {'red': 0, 'green': 0, 'gray': 0, 'yellow': 0}
     
     # Calcular estadísticas dinámicas basadas en filtros de tipologías
     filtered_units = units_from_db
@@ -90,13 +105,54 @@ def pricing(project_name):
         # Si hay filtros específicos, filtrar las unidades
         filtered_units = [u for u in units_from_db if safe_get(u, 'nombre_tipologia', '') in tipologia_filtro]
     
-    # Calcular estadísticas para el sidebar
+    # Calcular estadísticas para el sidebar basadas en unidades filtradas
     sidebar_stats = {
         'total_unidades': len(filtered_units),
         'suma_precio': sum(safe_get(u, 'precio_venta', 0) or 0 for u in filtered_units),
         'suma_area_total': sum(safe_get(u, 'area_techada', 0) or 0 for u in filtered_units),
         'suma_proformas': sum(safe_get(u, 'proformas_count', 0) or 0 for u in filtered_units)
     }
+    
+    # Calcular legend_data basado en unidades filtradas
+    legend_data = {'red': 0, 'green': 0, 'gray': 0, 'yellow': 0}
+    legend_stats = {
+        'red': {'unidades': 0, 'precio': 0, 'area': 0, 'proformas': 0},
+        'green': {'unidades': 0, 'precio': 0, 'area': 0, 'proformas': 0},
+        'yellow': {'unidades': 0, 'precio': 0, 'area': 0, 'proformas': 0},
+        'gray': {'unidades': 0, 'precio': 0, 'area': 0, 'proformas': 0}
+    }
+    
+    # Procesar cada unidad filtrada para calcular estadísticas por estado
+    for unit in filtered_units:
+        estado_lower = (safe_get(unit, 'estado_comercial', '') or '').lower()
+        precio = safe_get(unit, 'precio_venta', 0) or 0
+        area = safe_get(unit, 'area_techada', 0) or 0
+        proformas = safe_get(unit, 'proformas_count', 0) or 0
+        
+        if estado_lower == 'vendido':
+            legend_data['gray'] += 1
+            legend_stats['gray']['unidades'] += 1
+            legend_stats['gray']['precio'] += precio
+            legend_stats['gray']['area'] += area
+            legend_stats['gray']['proformas'] += proformas
+        elif estado_lower in ['separado', 'proceso de separacion']:
+            legend_data['yellow'] += 1
+            legend_stats['yellow']['unidades'] += 1
+            legend_stats['yellow']['precio'] += precio
+            legend_stats['yellow']['area'] += area
+            legend_stats['yellow']['proformas'] += proformas
+        elif safe_get(unit, 'codigo', '') in unidades_con_alerta:
+            legend_data['red'] += 1
+            legend_stats['red']['unidades'] += 1
+            legend_stats['red']['precio'] += precio
+            legend_stats['red']['area'] += area
+            legend_stats['red']['proformas'] += proformas
+        else:
+            legend_data['green'] += 1
+            legend_stats['green']['unidades'] += 1
+            legend_stats['green']['precio'] += precio
+            legend_stats['green']['area'] += area
+            legend_stats['green']['proformas'] += proformas
     
     for tipologia_name, units_in_tipo in tipologias_data_grouped.items():
         total_proformas = sum(safe_get(u, 'proformas_count', 0) or 0 for u in units_in_tipo)
@@ -113,6 +169,13 @@ def pricing(project_name):
             'has_alert': has_alert,
         })
 
+    # Obtener max_columns: usar parámetro si está disponible, sino usar cache
+    max_columns_param = request.args.get('max_columns')
+    if max_columns_param:
+        max_columns = int(max_columns_param)
+    else:
+        max_columns = get_max_columns_for_project(project_name, units_from_db)
+    
     grid_data = {}
     for unit in units_from_db:
         # --- LÓGICA DE ESTADO CORREGIDA Y REORDENADA ---
@@ -121,20 +184,16 @@ def pricing(project_name):
         
         # 1. Primero, los estados comerciales fijos tienen la máxima prioridad.
         if estado_lower == 'vendido':
-            legend_data['gray'] += 1
             display_status = 'vendido'
         elif estado_lower in ['separado', 'proceso de separacion']:
-            legend_data['yellow'] += 1
             display_status = 'separado'
         
         # 2. Solo si no es vendido ni separado, comprobamos si tiene alerta.
         elif safe_get(unit, 'codigo', '') in unidades_con_alerta:
-            legend_data['red'] += 1
             display_status = 'alerta-subir'
             
         # 3. Si no cumple ninguna de las anteriores, está disponible.
         else:
-            legend_data['green'] += 1
             display_status = 'disponible'
         # --- FIN DE LÓGICA CORREGIDA ---
 
@@ -166,8 +225,26 @@ def pricing(project_name):
         sorted_floors = sorted(grid_data.keys(), key=lambda p: int(''.join(filter(str.isdigit, p or '0'))), reverse=True)
     except (ValueError, TypeError):
         sorted_floors = sorted(grid_data.keys(), reverse=True)
-    sorted_grid_data = {floor: grid_data[floor] for floor in sorted_floors}
-    max_columns = max(len(units) for units in sorted_grid_data.values()) if sorted_grid_data else 0
+    
+    # Asegurar que todas las filas tengan el mismo número de columnas
+    sorted_grid_data = {}
+    for floor in sorted_floors:
+        units_in_floor = grid_data[floor].copy()
+        # Rellenar con unidades vacías si es necesario
+        while len(units_in_floor) < max_columns:
+            units_in_floor.append({
+                'codigo': '', 
+                'estado_comercial': '',
+                'precio_venta': 0, 
+                'precio_lista': 0,
+                'precio_m2': 0, 
+                'nombre_tipologia': '', 
+                'display_status': 'empty',
+                'proformas_count': 0, 
+                'css_class': 'empty-unit',
+                'area_techada': 0
+            })
+        sorted_grid_data[floor] = units_in_floor
 
     # --- INICIO DE LA CORRECCIÓN ---
     if request.headers.get('HX-Request') == 'true':
@@ -179,7 +256,7 @@ def pricing(project_name):
         # Si el target es el sidebar, devolver solo el sidebar
         elif request.headers.get('HX-Target') == 'sidebar-stats':
             return render_template('_sidebar_stats.html',
-                                   legend_data=legend_data, sidebar_stats=sidebar_stats)
+                                   legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
         else:
             # Si no, devolver todo el contenido de filtros y grid
             return render_template('_grid_and_sidebar.html',
@@ -188,7 +265,7 @@ def pricing(project_name):
                                    vista_actual=vista_actual, max_columns=max_columns,
                                    # AÑADIR LAS VARIABLES FALTANTES
                                    approval_table_data=approval_table_data,
-                                   legend_data=legend_data, sidebar_stats=sidebar_stats)
+                                   legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
     else:
         return render_template('pricing_grid.html', 
                                grid=sorted_grid_data, all_tipologias=all_tipologias,
@@ -196,7 +273,7 @@ def pricing(project_name):
                                tipologia_filtro=tipologia_filtro, vista_actual=vista_actual,
                                max_columns=max_columns,
                                approval_table_data=approval_table_data,
-                               legend_data=legend_data, sidebar_stats=sidebar_stats)
+                               legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
     # --- FIN DE LA CORRECCIÓN ---
 
 # --- 8. INICIO DE LA APLICACIÓN ---

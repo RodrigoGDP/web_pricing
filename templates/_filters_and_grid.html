@@ -8,11 +8,12 @@
     </button>
     <div class="dropdown-content" id="tipologia-dropdown">
       <form
-        hx-get="{{ url_for('pricing', project_name=current_project) }}"
-        hx-target="#sidebar-stats"
+        hx-get="{{ url_for('pricing', project_name=current_project) }}?max_columns={{ max_columns }}"
+        hx-target="#grid-container"
         hx-trigger="change from:input[type='checkbox']"
         hx-swap="innerHTML"
         hx-include="[name='vista']"
+        hx-on::after-swap="htmx.ajax('GET', this.getAttribute('hx-get') + '&' + new URLSearchParams(new FormData(this)).toString(), {target:'#sidebar-stats', swap:'innerHTML'})"
       >
         <div class="checkbox-item">
           <input
@@ -60,7 +61,7 @@
 
   <button
     class="contrast {% if vista_actual == 'codigo' %}active-view{% endif %}"
-    hx-get="{{ url_for('pricing', project_name=current_project, vista='codigo') }}"
+    hx-get="{{ url_for('pricing', project_name=current_project, vista='codigo') }}&max_columns={{ max_columns }}"
     hx-target="#grid-container"
     hx-swap="innerHTML"
     hx-include="[name='tipologia']"
@@ -69,7 +70,7 @@
   </button>
   <button
     class="contrast {% if vista_actual == 'precio' %}active-view{% endif %}"
-    hx-get="{{ url_for('pricing', project_name=current_project, vista='precio') }}"
+    hx-get="{{ url_for('pricing', project_name=current_project, vista='precio') }}&max_columns={{ max_columns }}"
     hx-target="#grid-container"
     hx-swap="innerHTML"
     hx-include="[name='tipologia']"
@@ -78,7 +79,7 @@
   </button>
   <button
     class="contrast {% if vista_actual == 'precio_m2' %}active-view{% endif %}"
-    hx-get="{{ url_for('pricing', project_name=current_project, vista='precio_m2') }}"
+    hx-get="{{ url_for('pricing', project_name=current_project, vista='precio_m2') }}&max_columns={{ max_columns }}"
     hx-target="#grid-container"
     hx-swap="innerHTML"
     hx-include="[name='tipologia']"
@@ -87,7 +88,7 @@
   </button>
   <button
     class="contrast {% if vista_actual == 'proformas' %}active-view{% endif %}"
-    hx-get="{{ url_for('pricing', project_name=current_project, vista='proformas') }}"
+    hx-get="{{ url_for('pricing', project_name=current_project, vista='proformas') }}&max_columns={{ max_columns }}"
     hx-target="#grid-container"
     hx-swap="innerHTML"
     hx-include="[name='tipologia']"
@@ -96,7 +97,7 @@
   </button>
   <button
     class="contrast {% if vista_actual == 'area_total' %}active-view{% endif %}"
-    hx-get="{{ url_for('pricing', project_name=current_project, vista='area_total') }}"
+    hx-get="{{ url_for('pricing', project_name=current_project, vista='area_total') }}&max_columns={{ max_columns }}"
     hx-target="#grid-container"
     hx-swap="innerHTML"
     hx-include="[name='tipologia']"
