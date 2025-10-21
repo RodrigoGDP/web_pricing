@@ -12,17 +12,37 @@ cursor = conn.cursor()
 print("Conectado a la base de datos SQLite.")
 
 cursor.execute("DROP TABLE IF EXISTS unidades")
-print("Tabla 'unidades' antigua eliminada.")
+cursor.execute("DROP TABLE IF EXISTS proyecto_fechas_inicio")
+print("Tablas antiguas eliminadas.")
 
 cursor.execute("""
     CREATE TABLE unidades (
         codigo TEXT PRIMARY KEY, nombre TEXT, estado_comercial TEXT,
         precio_venta REAL, precio_lista REAL, precio_m2 REAL, area_techada REAL,
         piso TEXT, nombre_tipologia TEXT, proformas_count INTEGER,
-        nombre_proyecto TEXT
+        nombre_proyecto TEXT, codigo_proyecto TEXT, fecha_venta DATE
     )
 """)
 print("Tabla 'unidades' creada con todas las columnas.")
+
+cursor.execute("""
+    CREATE TABLE proyecto_fechas_inicio (
+        nombre_proyecto TEXT PRIMARY KEY,
+        fecha_inicio_venta DATE
+    )
+""")
+print("Tabla 'proyecto_fechas_inicio' creada.")
+
+# Insertar fechas de inicio de venta
+fechas_inicio = [
+    ('COSMOS', '2023-08-01'),
+    ('PACIFIC SOUL', '2024-12-01'),
+    ('STILL', '2025-06-01'),
+    ('NUNA', '2023-08-01'),
+    ('Angamos Oeste', '2025-03-01')
+]
+cursor.executemany("INSERT INTO proyecto_fechas_inicio VALUES (?, ?)", fechas_inicio)
+print("Fechas de inicio de venta insertadas.")
 
 # Leer proforma_unidad.csv y contar proformas por codigo_unidad
 print(f"Leyendo proformas desde '{PROFORMA_CSV_NAME}'...")
@@ -65,18 +85,21 @@ try:
             except (ValueError, TypeError):
                 precio_venta_float, precio_lista_float, precio_m2_float, area_techada_float = 0.0, 0.0, 0.0, 0.0
 
+            # Obtener fecha_venta del CSV
+            fecha_venta = row.get('fecha_venta', '') or None
+            
             unidad = (
                 codigo_unidad, row['nombre'], row['estado_comercial'],
                 precio_venta_float, precio_lista_float, precio_m2_float, area_techada_float,
                 row['piso'], row['nombre_tipologia'],
-                proformas_count, row['nombre_proyecto']
+                proformas_count, row['nombre_proyecto'], row['codigo_proyecto'], fecha_venta
             )
             unidades_a_insertar.append(unidad)
 
         # La sentencia INSERT ya es correcta, no necesita cambios
         cursor.executemany("""
-            INSERT INTO unidades (codigo, nombre, estado_comercial, precio_venta, precio_lista, precio_m2, area_techada, piso, nombre_tipologia, proformas_count, nombre_proyecto)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO unidades (codigo, nombre, estado_comercial, precio_venta, precio_lista, precio_m2, area_techada, piso, nombre_tipologia, proformas_count, nombre_proyecto, codigo_proyecto, fecha_venta)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, unidades_a_insertar)
         conn.commit()
         print(f"\nReporte de Carga: {len(unidades_a_insertar)} registros válidos insertados.")

@@ -1,0 +1,110 @@
+<!-- Contenedor de gráficos de ventas y proformas -->
+<div id="charts-container">
+  <div class="chart-wrapper">
+    <h4 class="chart-title">Total de Ventas</h4>
+    <canvas id="sales-chart" width="400" height="200"></canvas>
+  </div>
+
+  <div class="chart-wrapper">
+    <h4 class="chart-title">Total de Proformas</h4>
+    <canvas id="proformas-chart" width="400" height="200"></canvas>
+  </div>
+</div>
+
+<script>
+  // Datos de gráficos desde el backend
+  const chartData = {{ chart_data|tojson|safe }};
+
+  // Función simple para crear gráficos
+  function createCharts() {
+      console.log('Intentando crear gráficos...');
+
+      // Verificar que Chart.js esté disponible
+      if (typeof Chart === 'undefined') {
+          console.log('Chart.js no disponible, reintentando en 500ms...');
+          setTimeout(createCharts, 500);
+          return;
+      }
+
+      console.log('Chart.js disponible, creando gráficos...');
+
+      // Crear gráfico de ventas
+      const salesCtx = document.getElementById('sales-chart');
+      if (salesCtx && chartData.sales_data) {
+          const labels = chartData.sales_data.map(item => {
+              const [year, month] = item.month.split('-');
+              const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                                'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+              return `${monthNames[parseInt(month) - 1]}.`;
+          });
+
+          const salesData = chartData.sales_data.map(item => item.total_sales);
+
+          new Chart(salesCtx, {
+              type: 'line',
+              data: {
+                  labels: labels,
+                  datasets: [{
+                      label: 'Ventas',
+                      data: salesData,
+                      borderColor: '#00C851',
+                      backgroundColor: 'rgba(0, 200, 81, 0.1)',
+                      fill: true,
+                      tension: 0.4
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                      legend: { display: false }
+                  }
+              }
+          });
+          console.log('Gráfico de ventas creado');
+      }
+
+      // Crear gráfico de proformas
+      const proformasCtx = document.getElementById('proformas-chart');
+      if (proformasCtx && chartData.proformas_data) {
+          const labels = chartData.proformas_data.map(item => {
+              const [year, month] = item.month.split('-');
+              const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                                'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+              return `${monthNames[parseInt(month) - 1]}.`;
+          });
+
+          const proformasData = chartData.proformas_data.map(item => item.total_proformas);
+
+          new Chart(proformasCtx, {
+              type: 'line',
+              data: {
+                  labels: labels,
+                  datasets: [{
+                      label: 'Proformas',
+                      data: proformasData,
+                      borderColor: '#00C851',
+                      backgroundColor: 'rgba(0, 200, 81, 0.1)',
+                      fill: true,
+                      tension: 0.4
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                      legend: { display: false }
+                  }
+              }
+          });
+          console.log('Gráfico de proformas creado');
+      }
+  }
+
+  // Inicializar gráficos cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', createCharts);
+  } else {
+      createCharts();
+  }
+</script>

@@ -1,5 +1,6 @@
 import sqlite3
 import random
+from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for
 
 # --- 1. INICIALIZACIÓN DE LA APLICACIÓN ---
@@ -29,6 +30,69 @@ def get_max_columns_for_project(project_name, units_from_db):
             grid_data_for_max_calc[piso].append(unit)
         project_max_columns[project_name] = max(len(units) for units in grid_data_for_max_calc.values()) if grid_data_for_max_calc else 0
     return project_max_columns[project_name]
+
+def calculate_velocity(units_in_tipologia, project_name, conn):
+    """Calcula la velocidad de venta para una tipología específica"""
+    # Obtener fecha de inicio de venta del proyecto
+    fecha_inicio_row = conn.execute(
+        "SELECT fecha_inicio_venta FROM proyecto_fechas_inicio WHERE nombre_proyecto = ?", 
+        (project_name,)
+    ).fetchone()
+    
+    if not fecha_inicio_row:
+        return 0.0
+    
+    fecha_inicio = datetime.strptime(fecha_inicio_row[0], '%Y-%m-%d').date()
+    
+    # Contar unidades vendidas de esta tipología
+    # Los units_in_tipologia son tuplas, no diccionarios
+    unidades_vendidas = []
+    for u in units_in_tipologia:
+        # u[2] es estado_comercial según el orden de la tabla
+        estado = u[2] if u[2] else ''
+        if estado.lower() == 'vendido':
+            unidades_vendidas.append(u)
+    
+    total_vendidas = len(unidades_vendidas)
+    
+    if total_vendidas == 0:
+        return 0.0
+    
+    # Si todas las unidades están vendidas, usar la fecha de la última venta
+    if total_vendidas == len(units_in_tipologia):
+        # Buscar la fecha de venta más reciente
+        fechas_venta = []
+        for u in unidades_vendidas:
+            # u[12] es fecha_venta según el orden de la tabla
+            fecha_venta_str = u[12] if u[12] else ''
+            if fecha_venta_str:
+                try:
+                    fecha_venta = datetime.strptime(fecha_venta_str, '%Y-%m-%d').date()
+                    fechas_venta.append(fecha_venta)
+                except ValueError:
+                    continue
+        
+        if fechas_venta:
+            fecha_fin = max(fechas_venta)
+        else:
+            # Si no hay fechas de venta válidas, usar fecha actual
+            fecha_fin = date.today()
+    else:
+        # Si no todas están vendidas, usar fecha actual
+        fecha_fin = date.today()
+    
+    # Calcular meses transcurridos
+    meses_transcurridos = (fecha_fin.year - fecha_inicio.year) * 12 + (fecha_fin.month - fecha_inicio.month)
+    if fecha_fin.day < fecha_inicio.day:
+        meses_transcurridos -= 1
+    
+    # Evitar división por cero
+    if meses_transcurridos <= 0:
+        meses_transcurridos = 1
+    
+    # Calcular velocidad (unidades vendidas por mes)
+    velocidad = total_vendidas / meses_transcurridos
+    return round(velocidad, 2)
 
 # --- INICIO DE LA SOLUCIÓN ---
 @app.route('/')
@@ -160,6 +224,9 @@ def pricing(project_name):
             legend_stats['green']['area'] += area
             legend_stats['green']['proformas'] += proformas
     
+    # Obtener conexión para calcular velocidades
+    conn = get_db_connection()
+    
     for tipologia_name, units_in_tipo in tipologias_data_grouped.items():
         total_proformas = sum(safe_get(u, 'proformas_count', 0) or 0 for u in units_in_tipo)
         precios_m2 = [safe_get(u, 'precio_m2', 0) or 0 for u in units_in_tipo if safe_get(u, 'precio_m2', 0) and safe_get(u, 'precio_m2', 0) > 0]
@@ -167,13 +234,21 @@ def pricing(project_name):
         total_count = len(units_in_tipo)
         available_count = sum(1 for u in units_in_tipo if safe_get(u, 'estado_comercial', '').lower() != 'vendido')
         has_alert = any(safe_get(u, 'codigo', '') in unidades_con_alerta for u in units_in_tipo)
+        
+        # Calcular velocidad de venta
+        velocidad_promedio = calculate_velocity(units_in_tipo, project_name, conn)
+        
         approval_table_data.append({
             'tipologia': tipologia_name,
             'unidades_disponibles_str': f"{available_count}/{total_count}",
             'total_proformas': total_proformas,
             'avg_precio_m2': avg_precio_m2,
+            'velocidad_promedio': velocidad_promedio,
+            'velocidad_venta_mercado': '',  # Vacía por ahora
             'has_alert': has_alert,
         })
+    
+    conn.close()
 
     # Obtener max_columns: usar parámetro si está disponible, sino usar cache
     max_columns_param = request.args.get('max_columns')

@@ -14,7 +14,9 @@
             <th>Unidades disponibles</th>
             <th>Número de proformas</th>
             <th>Precio prom actual</th>
+            <th>Velocidad promedio</th>
             <th>Precio prom mercado</th>
+            <th>Velocidad venta mercado</th>
             <th>Precio prom sugerido</th>
             <th>Triggers</th>
             <th>Aprobación</th>
@@ -27,7 +29,9 @@
             <td>{{ row.unidades_disponibles_str }}</td>
             <td>{{ row.total_proformas }}</td>
             <td>{{ row.avg_precio_m2|currency }}</td>
+            <td>{{ row.velocidad_promedio }} u/mes</td>
             <td></td>
+            <td>{{ row.velocidad_venta_mercado }}</td>
             <td></td>
             <td></td>
             <td>
