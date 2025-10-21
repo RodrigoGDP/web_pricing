@@ -261,6 +261,7 @@ def pricing(project_name):
             return render_template('_grid_with_oob_updates.html',
                                    grid=sorted_grid_data, vista_actual=vista_actual, 
                                    max_columns=max_columns, tipologia_filtro=tipologia_filtro,
+                                   all_tipologias=all_tipologias, current_project=project_name,
                                    legend_data=legend_data, sidebar_stats=sidebar_stats, legend_stats=legend_stats)
         # Si el target es el sidebar, devolver solo el sidebar
         elif hx_target == 'sidebar-stats':

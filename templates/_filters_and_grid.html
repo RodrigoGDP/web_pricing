@@ -10,52 +10,9 @@
       <span class="dropdown-arrow">▼</span>
     </button>
     <div class="dropdown-content" id="tipologia-dropdown">
-      <form
-        hx-get="{{ url_for('pricing', project_name=current_project) }}?max_columns={{ max_columns }}"
-        hx-target="#grid-container"
-        hx-trigger="change from:input[type='checkbox']"
-        hx-swap="innerHTML"
-        hx-include="[name='vista'], [name='tipologia']"
-      >
-        <div class="checkbox-item">
-          <input
-            type="checkbox"
-            id="all-tipologias"
-            name="tipologia"
-            value=""
-            {%
-            if
-            not
-            tipologia_filtro
-            %}checked{%
-            endif
-            %}
-            onchange="handleAllCheckbox(this)"
-          />
-          <label for="all-tipologias">Todas las Tipologías</label>
-        </div>
-        {% for tipo in all_tipologias %}
-        <div class="checkbox-item">
-          <input
-            type="checkbox"
-            id="tipologia-{{ loop.index }}"
-            name="tipologia"
-            value="{{ tipo }}"
-            {%
-            if
-            tipo
-            in
-            tipologia_filtro
-            %}checked{%
-            endif
-            %}
-            onchange="handleIndividualCheckbox(this)"
-          />
-          <label for="tipologia-{{ loop.index }}">{{ tipo }}</label>
-        </div>
-        {% endfor %}
-        <input type="hidden" name="vista" value="{{ vista_actual }}" />
-      </form>
+      <div id="tipologia-dropdown-content">
+        {% include '_tipologia_dropdown_content.html' %}
+      </div>
     </div>
   </div>
 

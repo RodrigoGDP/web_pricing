@@ -37,3 +37,8 @@
   tipologia_filtro[0] }} {% else %} {{ tipologia_filtro|length }} tipologías
   seleccionadas {% endif %} {% else %} Todas las Tipologías {% endif %}
 </span>
+
+<!-- Actualización out-of-band del contenido del dropdown -->
+<div id="tipologia-dropdown-content" hx-swap-oob="innerHTML">
+  {% include '_tipologia_dropdown_content.html' %}
+</div>

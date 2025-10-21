@@ -58,7 +58,7 @@
 
       function handleAllCheckbox(checkbox) {
         const individualCheckboxes = document.querySelectorAll(
-          'input[name="tipologia"][value!=""]'
+          'input[name="tipologia"]:not([value=""])'
         );
         const form = checkbox.closest("form");
 
@@ -75,9 +75,28 @@
 
       function handleIndividualCheckbox(checkbox) {
         const allCheckbox = document.getElementById("all-tipologias");
+        const form = checkbox.closest("form");
+        const individualCheckboxes = document.querySelectorAll(
+          'input[name="tipologia"]:not([value=""])'
+        );
+
         if (checkbox.checked) {
+          // Si se marca una individual, desmarcar "Todas"
           allCheckbox.checked = false;
+        } else {
+          // Si se desmarca una individual, verificar si no hay ninguna marcada
+          const anyChecked = Array.from(individualCheckboxes).some(
+            (cb) => cb.checked
+          );
+          if (!anyChecked) {
+            // Si no hay ninguna marcada, marcar "Todas"
+            allCheckbox.checked = true;
+          }
         }
+
+        // Disparar el evento change para que HTMX lo detecte
+        form.dispatchEvent(new Event("change", { bubbles: true }));
+
         // Mantener el dropdown abierto
         event.stopPropagation();
       }
@@ -97,6 +116,14 @@
           }
         }
       };
+
+      // Re-conectar event listeners después de actualizaciones HTMX
+      document.addEventListener("htmx:afterSwap", function (event) {
+        // Si se actualizó el contenido del dropdown, re-conectar los event listeners
+        if (event.target.id === "tipologia-dropdown-content") {
+          console.log("Dropdown content updated, reconnecting event listeners");
+        }
+      });
     </script>
   </body>
 </html>
