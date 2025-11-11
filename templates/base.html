@@ -35,11 +35,27 @@
         </div>
       </div>
       <nav class="main-nav">
-        <ul>
+        <ul class="main-nav-links">
           <li><a href="{{ url_for('dashboard_redirect') }}">Dashboard</a></li>
           <li><a href="{{ url_for('pricing_redirect') }}">Pricing</a></li>
           <li><a href="#">Análisis</a></li>
         </ul>
+        <div class="nav-actions">
+          <button class="notification-btn" aria-label="Notificaciones">
+            <span class="notification-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d2143" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </span>
+            <span class="notification-badge">3</span>
+          </button>
+          <button class="user-btn" aria-label="Usuario Milka">
+            <img src="{{ url_for('static', filename='images/imagen_milka.png') }}" alt="Milka" class="user-avatar" />
+            <span class="user-name">Milka</span>
+            <span class="user-caret">▾</span>
+          </button>
+        </div>
       </nav>
     </header>
 

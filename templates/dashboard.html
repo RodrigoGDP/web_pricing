@@ -17,9 +17,19 @@
 {% block content %}
 <div class="dashboard-container">
   <section class="summary-section">
-    <div class="summary-card">
+    <div class="summary-card summary-card--with-badges">
       <span class="summary-label">Unidades Vendidas</span>
       <span class="summary-value">{{ summary_cards.unidades_vendidas or 0 }}</span>
+      {% if dorm_bars %}
+      <div class="tipologia-badges">
+        {% for item in dorm_bars %}
+        <div class="tipologia-badge">
+          <span class="badge-label">{{ item.label }}</span>
+          <span class="badge-value">{{ item.sold_pct | round(1) }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
     <div class="summary-card">
       <span class="summary-label">Progreso Temporal</span>
@@ -34,23 +44,13 @@
     <div class="summary-card">
       <span class="summary-label">Ventas</span>
       <span class="summary-value">{{ summary_cards.ventas | currency }}</span>
-      <span class="summary-subtext">Meta provisional: {{ meta_provisional | currency }}</span>
+      <span class="summary-subtext">Meta de Venta: {{ meta_provisional | currency }}</span>
     </div>
     <div class="summary-card">
       <span class="summary-label">Área vendida</span>
       <span class="summary-value">{{ summary_cards.area_vendida | round(2) }} m²</span>
     </div>
   </section>
-  {% if dorm_bars %}
-  <div class="tipologia-badges">
-    {% for item in dorm_bars %}
-    <div class="tipologia-badge">
-      <span class="badge-label">{{ item.label }}</span>
-      <span class="badge-value">{{ item.sold_pct | round(1) }}%</span>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
   <section class="charts-row">
     <div class="card chart-card chart-card--evolutivo">
       <div class="card-header">
@@ -492,6 +492,7 @@
         {
           data: [gaugeSold, gaugeRemaining],
           backgroundColor: [palette.bar_primary, "#e4e6f3"],
+          datalabels: { display: false },
           borderWidth: 0
         }
       ]

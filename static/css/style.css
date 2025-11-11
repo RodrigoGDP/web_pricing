@@ -34,10 +34,96 @@
     color: var(--pico-muted-color) !important;
     padding: 0.5rem 1rem;
 }
-.main-nav a {
-    font-size: 1.1em;
+.main-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.main-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.main-nav-links a {
+    font-size: 1.05rem;
     font-weight: 600;
     color: #111922;
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.notification-btn {
+    position: relative;
+    border: 0;
+    background: transparent;
+    border-radius: 999px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease;
+}
+
+.notification-btn:hover {
+    box-shadow: none;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: #ff4d4f;
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 1px 5px;
+}
+
+.user-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 0;
+    background: transparent;
+    border-radius: 999px;
+    padding: 0;
+    cursor: pointer;
+    font-weight: 600;
+    color: #141b2c;
+    transition: box-shadow 0.2s ease;
+}
+
+.user-btn:hover {
+    box-shadow: none;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-name {
+    font-size: 0.95rem;
+}
+
+.user-caret {
+    font-size: 0.8rem;
+    opacity: 0.6;
 }
 
 .main-layout-grid.full-width {
@@ -515,11 +601,12 @@
 .summary-card {
     background-color: #ffffff;
     border-radius: 16px;
-    padding: 0.75rem 1rem;
+    padding: 0.9rem 1.1rem 2.2rem;
     box-shadow: 0 8px 24px rgba(114, 122, 181, 0.15);
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
+    position: relative;
 }
 
 .summary-label {
@@ -697,17 +784,23 @@
 }
 
 .tipologia-badges {
-    margin-top: 0.5rem;
+    margin-top: -0.6rem;
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+.summary-card--with-badges .tipologia-badges {
+    position: absolute;
+    left: 1.1rem;
+    bottom: 0.55rem;
 }
 
 .tipologia-badge {
     background: linear-gradient(135deg, #1f2640 0%, #2e3b73 100%);
     color: #ffffff;
     border-radius: 14px;
-    padding: 0.2rem 0.55rem;
+    padding: 0.15rem 0.5rem;
     display: flex;
     align-items: center;
     gap: 0.35rem;
