@@ -41,7 +41,16 @@
       <span class="summary-value">{{ summary_cards.area_vendida | round(2) }} m²</span>
     </div>
   </section>
-
+  {% if dorm_bars %}
+  <div class="tipologia-badges">
+    {% for item in dorm_bars %}
+    <div class="tipologia-badge">
+      <span class="badge-label">{{ item.label }}</span>
+      <span class="badge-value">{{ item.sold_pct | round(1) }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   <section class="charts-row">
     <div class="card chart-card chart-card--evolutivo">
       <div class="card-header">
@@ -112,7 +121,10 @@
         <h3>Progreso de ventas</h3>
       </div>
       <div class="gauge-wrapper">
-        <canvas id="gaugeChart"></canvas>
+        <div class="gauge-chart-container">
+          <canvas id="gaugeChart"></canvas>
+          <div class="gauge-center-value">{{ gauge.vendido_pct | round(1) }}%</div>
+        </div>
         <div class="gauge-summary">
           <div class="gauge-summary-item">
             <span class="legend-color" style="background-color: {{ color_palette.bar_primary }}"></span>
@@ -121,9 +133,6 @@
           <div class="gauge-summary-item">
             <span class="legend-color" style="background-color: {{ color_palette.bar_secondary }}"></span>
             Por vender: {{ gauge.por_vender_valor }}
-          </div>
-          <div class="meta-text">
-            Meta provisional: {{ gauge.meta_provisional | currency }}
           </div>
         </div>
       </div>
@@ -331,8 +340,51 @@
   const dormSold = dormBars.map((item) => item.sold_avg);
   const dormAvailable = dormBars.map((item) => item.available_avg);
   const dormAlert = dormBars.map((item) => item.alert_avg);
+  const dormSoldPercent = dormBars.map((item) => item.sold_pct || 0);
 
   const ctxDorm = document.getElementById("dormChart").getContext("2d");
+  const dormAnnotation = {
+    id: "dorm-percentage-badges",
+    afterDatasetsDraw(chart, args, pluginOptions) {
+      const { ctx, chartArea, scales } = chart;
+      const yTop = chartArea.top - 30;
+      ctx.save();
+      dormLabels.forEach((label, index) => {
+        const x = scales.x.getPixelForValue(index);
+        const soldPct = dormSoldPercent[index] || 0;
+        const text = `${soldPct.toFixed(1)}%`;
+        const badgeWidth = ctx.measureText(text).width + 32;
+        const badgeHeight = 26;
+        const badgeX = x - badgeWidth / 2;
+        const badgeY = yTop;
+
+        ctx.fillStyle = "#1d2143";
+        ctx.strokeStyle = "#454a72";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const radius = 13;
+        ctx.moveTo(badgeX + radius, badgeY);
+        ctx.lineTo(badgeX + badgeWidth - radius, badgeY);
+        ctx.quadraticCurveTo(badgeX + badgeWidth, badgeY, badgeX + badgeWidth, badgeY + radius);
+        ctx.lineTo(badgeX + badgeWidth, badgeY + badgeHeight - radius);
+        ctx.quadraticCurveTo(badgeX + badgeWidth, badgeY + badgeHeight, badgeX + badgeWidth - radius, badgeY + badgeHeight);
+        ctx.lineTo(badgeX + radius, badgeY + badgeHeight);
+        ctx.quadraticCurveTo(badgeX, badgeY + badgeHeight, badgeX, badgeY + badgeHeight - radius);
+        ctx.lineTo(badgeX, badgeY + radius);
+        ctx.quadraticCurveTo(badgeX, badgeY, badgeX + radius, badgeY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "600 13px 'Inter', 'Segoe UI', sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, x, badgeY + badgeHeight / 2);
+      });
+      ctx.restore();
+    }
+  };
+
   new Chart(ctxDorm, {
     type: "bar",
     data: {
@@ -342,19 +394,56 @@
           label: "Vendido",
           data: dormSold,
           backgroundColor: palette.bar_primary,
-          borderRadius: 8
+          borderRadius: 8,
+          datalabels: {
+            anchor: "end",
+            align: "end",
+            offset: -6,
+            color: "#ffffff",
+            backgroundColor: palette.bar_primary,
+            borderRadius: 6,
+            padding: { top: 4, bottom: 4, left: 8, right: 8 },
+            font: { weight: "700", size: 12 },
+            formatter: (value) => formatCurrency(value)
+          }
         },
         {
           label: "Disponible",
           data: dormAvailable,
           backgroundColor: palette.bar_secondary,
-          borderRadius: 8
+          borderRadius: 8,
+          datalabels: {
+            anchor: "end",
+            align: "end",
+            offset: -6,
+            color: palette.bar_secondary,
+            backgroundColor: "#ffffff",
+            borderRadius: 6,
+            borderWidth: 1,
+            borderColor: palette.bar_secondary,
+            padding: { top: 4, bottom: 4, left: 8, right: 8 },
+            font: { weight: "700", size: 12 },
+            formatter: (value) => formatCurrency(value)
+          }
         },
         {
           label: "Precio actualizado",
           data: dormAlert,
           backgroundColor: palette.bar_gray,
-          borderRadius: 8
+          borderRadius: 8,
+          datalabels: {
+            anchor: "end",
+            align: "end",
+            offset: -6,
+            color: "#5f646d",
+            backgroundColor: "#ffffff",
+            borderRadius: 6,
+            borderWidth: 1,
+            borderColor: "#d1d5db",
+            padding: { top: 4, bottom: 4, left: 8, right: 8 },
+            font: { weight: "700", size: 12 },
+            formatter: (value) => formatCurrency(value)
+          }
         }
       ]
     },
@@ -364,7 +453,21 @@
       plugins: {
         legend: {
           position: "bottom",
-          labels: { color: palette.text_secondary }
+          labels: {
+            color: palette.text_secondary,
+            usePointStyle: true,
+            pointStyle: "circle",
+            padding: 20,
+            font: { size: 12, weight: "600" }
+          }
+        },
+        datalabels: {
+          clip: false
+        }
+      },
+      layout: {
+        padding: {
+          top: 32
         }
       },
       scales: {
@@ -374,28 +477,34 @@
           ticks: { color: palette.text_secondary }
         }
       }
-    }
+    },
+    plugins: [dormAnnotation]
   });
 
   const ctxGauge = document.getElementById("gaugeChart").getContext("2d");
+  const gaugeSold = gaugeData.vendido_pct || 0;
+  const gaugeRemaining = Math.max(0, 100 - gaugeSold);
+
   new Chart(ctxGauge, {
     type: "doughnut",
     data: {
-      labels: ["Vendido", "Por vender", "Incremento"],
       datasets: [
         {
-          data: [gaugeData.vendido_pct, gaugeData.por_vender_pct, gaugeData.incremento_pct],
-          backgroundColor: [palette.bar_primary, palette.bar_secondary, palette.bar_gray],
+          data: [gaugeSold, gaugeRemaining],
+          backgroundColor: [palette.bar_primary, "#e4e6f3"],
           borderWidth: 0
         }
       ]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
       rotation: -90,
       circumference: 180,
-      cutout: "70%",
+      cutout: "72%",
       plugins: {
-        legend: { display: false }
+        legend: { display: false },
+        tooltip: { enabled: false }
       }
     }
   });

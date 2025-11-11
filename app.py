@@ -134,6 +134,21 @@ def get_total_habitaciones_from_unit(unit, project_name=""):
         if value and 0 < value <= 6:
             return value
 
+    # Heurística basada en área techada
+    area_techada = safe_get(unit, 'area_techada', 0) or 0
+    if area_techada and area_techada > 0:
+        if area_techada <= 55:
+            return 1
+        if area_techada <= 95:
+            return 2
+        if area_techada <= 135:
+            return 3
+        if area_techada <= 170:
+            return 4
+        if area_techada <= 220:
+            return 5
+        return 6
+
     return 0
 
 
@@ -643,11 +658,16 @@ def dashboard(project_name):
 
     dorm_bars = []
     for label, stats in dorm_summary.items():
+        total = stats['sold_count'] + stats['available_count'] + stats['alert_count']
+        sold_pct = round((stats['sold_count'] / total) * 100, 1) if total else 0
         sold_avg = stats['sold_sum'] / stats['sold_count'] if stats['sold_count'] else 0
         available_avg = stats['available_sum'] / stats['available_count'] if stats['available_count'] else 0
         alert_avg = stats['alert_sum'] / stats['alert_count'] if stats['alert_count'] else 0
         dorm_bars.append({
             'label': label,
+            'sold_pct': sold_pct,
+            'total_count': total,
+            'sold_count': stats['sold_count'],
             'sold_avg': round(sold_avg, 2),
             'available_avg': round(available_avg, 2),
             'alert_avg': round(alert_avg, 2)

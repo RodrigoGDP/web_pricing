@@ -586,6 +586,16 @@
     justify-self: center;
 }
 
+.gauge-card .card-header {
+    justify-content: center;
+    text-align: center;
+}
+
+.gauge-card .card-header h3 {
+    width: 100%;
+    text-align: center;
+}
+
 .chart-card canvas {
     width: 100% !important;
     height: 100% !important;
@@ -593,7 +603,7 @@
 
 .gauge-card canvas {
     width: 100% !important;
-    height: 300px !important;
+    height: 220px !important;
 }
 
 .card-header {
@@ -638,18 +648,40 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
+    gap: 0.75rem;
     height: 100%;
     justify-content: center;
 }
 
+.gauge-chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+}
+
+.gauge-chart-container canvas {
+    width: 100% !important;
+    height: 220px !important;
+}
+
+.gauge-center-value {
+    position: absolute;
+    top: 58%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #1d2143;
+}
+
 .gauge-summary {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    flex-direction: row;
+    gap: 1.2rem;
     align-items: center;
     font-size: 0.9rem;
-    color: #626481;
+    color: #2f3654;
+    font-weight: 600;
 }
 
 .gauge-summary .legend-color {
@@ -660,19 +692,40 @@
 .gauge-summary-item {
     display: flex;
     align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+}
+
+.tipologia-badges {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
-    font-weight: 600;
 }
 
-.meta-text {
-    margin-top: 0.5rem;
+.tipologia-badge {
+    background: linear-gradient(135deg, #1f2640 0%, #2e3b73 100%);
+    color: #ffffff;
+    border-radius: 14px;
+    padding: 0.2rem 0.55rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.65rem;
     font-weight: 600;
-    color: #454769;
+    box-shadow: 0 4px 10px rgba(31, 38, 64, 0.2);
 }
 
-.meta-text {
-    margin-top: 0.5rem;
-    font-weight: 600;
+.tipologia-badge .badge-label {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    opacity: 0.8;
+}
+
+.tipologia-badge .badge-value {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #ffffff;
 }
 
 .layout-card {
