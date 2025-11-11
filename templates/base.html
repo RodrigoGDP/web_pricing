@@ -36,14 +36,14 @@
       </div>
       <nav class="main-nav">
         <ul>
-          <li><a href="/">Dashboard</a></li>
-          <li><a href="/pricing">Pricing</a></li>
+          <li><a href="{{ url_for('dashboard_redirect') }}">Dashboard</a></li>
+          <li><a href="{{ url_for('pricing_redirect') }}">Pricing</a></li>
           <li><a href="#">Análisis</a></li>
         </ul>
       </nav>
     </header>
 
-    <div class="main-layout-grid">
+    <div class="main-layout-grid {% block layout_class %}{% endblock %}">
       <main class="main-content">{% block content %}{% endblock %}</main>
       <aside class="sidebar-placeholder">
         {% block sidebar %}{% endblock %}

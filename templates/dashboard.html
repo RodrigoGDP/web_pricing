@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block layout_class %}full-width{% endblock %}
+
+{% block project_selector %}
+<select name="project" onchange="window.location.href='{{ url_for('dashboard', project_name='__PROJECT__') }}'.replace('__PROJECT__', encodeURIComponent(this.value))">
+  {% for project in all_projects %}
+  <option value="{{ project.nombre_proyecto }}" {% if project.nombre_proyecto == current_project %}selected{% endif %}>
+    {{ project.nombre_proyecto }}
+  </option>
+  {% endfor %}
+</select>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <section class="summary-section">
+    <div class="summary-card">
+      <span class="summary-label">Unidades Vendidas</span>
+      <span class="summary-value">{{ summary_cards.unidades_vendidas or 0 }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Progreso Temporal</span>
+      <span class="summary-value">{{ summary_cards.progreso_temporal or 0 }}%</span>
+      <span class="summary-subtext">Meta: 24 meses</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Precio por m²</span>
+      <span class="summary-value">{{ summary_cards.precio_m2 | currency }}</span>
+      <span class="summary-subtext">Promedio unidades disponibles</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Ventas</span>
+      <span class="summary-value">{{ summary_cards.ventas | currency }}</span>
+      <span class="summary-subtext">Meta provisional: {{ meta_provisional | currency }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Área vendida</span>
+      <span class="summary-value">{{ summary_cards.area_vendida | round(2) }} m²</span>
+    </div>
+  </section>
+
+  <section class="charts-row">
+    <div class="card chart-card">
+      <div class="card-header">
+        <h3>Evolutivo de ventas</h3>
+        <div class="chart-legend">
+          <span class="legend-item">
+            <span class="legend-color" style="background-color: {{ color_palette.bar_primary }}"></span>
+            Unidades vendidas
+          </span>
+          <span class="legend-item">
+            <span class="legend-line" style="background-color: {{ color_palette.line_green }}"></span>
+            Ticket
+          </span>
+          <span class="legend-item">
+            <span class="legend-line" style="background-color: {{ color_palette.line_red }}"></span>
+            Precio x m²
+          </span>
+        </div>
+      </div>
+      <canvas id="evolutivoChart"></canvas>
+    </div>
+    <div class="card chart-card">
+      <div class="card-header">
+        <h3>Precio propuesto por dormitorio</h3>
+      </div>
+      <canvas id="dormChart"></canvas>
+    </div>
+  </section>
+
+  <section class="lower-row">
+    <div class="card layout-card">
+      <div class="card-header">
+        <h3>Resumen por tipología</h3>
+      </div>
+      <div class="layout-table-wrapper">
+        <table class="layout-table">
+          <thead>
+            <tr>
+              <th>Tipología</th>
+              <th>Unidades</th>
+              <th>% vendido</th>
+              <th>Precio prom m²</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in layout_overview %}
+            <tr>
+              <td>{{ item.tipologia }}</td>
+              <td>{{ item.total_unidades }}</td>
+              <td>{{ item.porcentaje_vendido }}%</td>
+              <td>{{ item.precio_m2_promedio | currency }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card gauge-card">
+      <div class="card-header">
+        <h3>Progreso de ventas</h3>
+      </div>
+      <div class="gauge-wrapper">
+        <canvas id="gaugeChart"></canvas>
+        <div class="gauge-summary">
+          <div>
+            <span class="legend-color" style="background-color: {{ color_palette.bar_primary }}"></span>
+            Vendido: {{ gauge.vendido_valor }}
+          </div>
+          <div>
+            <span class="legend-color" style="background-color: {{ color_palette.bar_secondary }}"></span>
+            Por vender: {{ gauge.por_vender_valor }}
+          </div>
+          <div class="meta-text">
+            Meta provisional: {{ gauge.meta_provisional | currency }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  const palette = {{ color_palette | tojson }};
+  const evolutivoData = {{ evolutivo | tojson }};
+  const dormBars = {{ dorm_bars | tojson }};
+  const gaugeData = {{ gauge | tojson }};
+
+  const monthLabels = evolutivoData.labels.map((label) => {
+    const [year, month] = label.split("-");
+    const date = new Date(Number(year), Number(month) - 1);
+    return date.toLocaleDateString("es-PE", { month: "short", year: "numeric" });
+  });
+
+  const ctxEvolutivo = document.getElementById("evolutivoChart").getContext("2d");
+  new Chart(ctxEvolutivo, {
+    type: "bar",
+    data: {
+      labels: monthLabels,
+      datasets: [
+        {
+          type: "bar",
+          label: "Unidades vendidas",
+          data: evolutivoData.units,
+          backgroundColor: palette.bar_primary,
+          borderRadius: 8,
+          barPercentage: 0.6,
+          categoryPercentage: 0.6,
+          maxBarThickness: 40,
+          order: 1,
+          yAxisID: "yUnits",
+          stack: "ventas"
+        },
+        {
+          type: "line",
+          label: "Ticket",
+          data: evolutivoData.ticket,
+          borderColor: palette.line_green,
+          backgroundColor: palette.line_green,
+          tension: 0.3,
+          fill: false,
+          yAxisID: "yTicket",
+          order: 0
+        },
+        {
+          type: "line",
+          label: "Precio x m²",
+          data: evolutivoData.price_m2,
+          borderColor: palette.line_red,
+          backgroundColor: palette.line_red,
+          tension: 0.3,
+          fill: false,
+          yAxisID: "yPrice",
+          order: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: palette.text_secondary }
+        },
+        yUnits: {
+          position: "left",
+          stacked: true,
+          beginAtZero: true,
+          ticks: { color: palette.text_secondary }
+        },
+        yTicket: {
+          position: "right",
+          beginAtZero: true,
+          grid: { drawOnChartArea: false },
+          ticks: { color: palette.text_secondary }
+        },
+        yPrice: {
+          position: "right",
+          beginAtZero: true,
+          grid: { drawOnChartArea: false },
+          ticks: { color: palette.text_secondary },
+          offset: true
+        }
+      }
+    }
+  });
+
+  const dormLabels = dormBars.map((item) => item.label);
+  const dormSold = dormBars.map((item) => item.sold_avg);
+  const dormAvailable = dormBars.map((item) => item.available_avg);
+  const dormAlert = dormBars.map((item) => item.alert_avg);
+
+  const ctxDorm = document.getElementById("dormChart").getContext("2d");
+  new Chart(ctxDorm, {
+    type: "bar",
+    data: {
+      labels: dormLabels,
+      datasets: [
+        {
+          label: "Vendido",
+          data: dormSold,
+          backgroundColor: palette.bar_primary,
+          borderRadius: 8
+        },
+        {
+          label: "Disponible",
+          data: dormAvailable,
+          backgroundColor: palette.bar_secondary,
+          borderRadius: 8
+        },
+        {
+          label: "Precio actualizado",
+          data: dormAlert,
+          backgroundColor: palette.bar_gray,
+          borderRadius: 8
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: palette.text_secondary }
+        }
+      },
+      scales: {
+        x: { ticks: { color: palette.text_secondary } },
+        y: {
+          beginAtZero: true,
+          ticks: { color: palette.text_secondary }
+        }
+      }
+    }
+  });
+
+  const ctxGauge = document.getElementById("gaugeChart").getContext("2d");
+  new Chart(ctxGauge, {
+    type: "doughnut",
+    data: {
+      labels: ["Vendido", "Por vender", "Incremento"],
+      datasets: [
+        {
+          data: [gaugeData.vendido_pct, gaugeData.por_vender_pct, gaugeData.incremento_pct],
+          backgroundColor: [palette.bar_primary, palette.bar_secondary, palette.bar_gray],
+          borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      rotation: -90,
+      circumference: 180,
+      cutout: "70%",
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+</script>
+{% endblock %}
+

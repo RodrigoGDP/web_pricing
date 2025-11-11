@@ -1,6 +1,10 @@
+import csv
 import sqlite3
 import random
+from collections import defaultdict
 from datetime import datetime, date
+from functools import lru_cache
+from pathlib import Path
 from flask import Flask, render_template, request, redirect, url_for
 
 # --- 1. INICIALIZACIÓN DE LA APLICACIÓN ---
@@ -9,6 +13,7 @@ app = Flask(__name__)
 # Cache para max_columns por proyecto
 project_max_columns = {}
 DB_NAME = "database.db"
+BASE_DIR = Path(__file__).resolve().parent
 
 def safe_get(row, key, default=None):
     """Función auxiliar para obtener valores de sqlite3.Row de manera segura"""
@@ -94,12 +99,94 @@ def calculate_velocity(units_in_tipologia, project_name, conn):
     velocidad = total_vendidas / meses_transcurridos
     return round(velocidad, 2)
 
+
+def parse_int(value, default=0):
+    try:
+        if value is None:
+            return default
+        return int(float(value))
+    except (ValueError, TypeError):
+        return default
+
+
+def get_total_habitaciones_from_unit(unit):
+    """
+    Obtiene el número de dormitorios de una unidad.
+    Primero intenta usar el campo total_habitaciones. Si no existe o es 0,
+    recurre a un mapeo precargado desde el CSV original.
+    """
+    total_habitaciones = safe_get(unit, 'total_habitaciones')
+    if total_habitaciones not in (None, '', 'null'):
+        value = parse_int(total_habitaciones, default=0)
+        if 0 < value <= 6:
+            return value
+
+    # Intentar obtenerlo del CSV original usando el código de la unidad
+    codigo = safe_get(unit, 'codigo', '')
+    if codigo:
+        csv_map = load_total_habitaciones_map()
+        value = csv_map.get(codigo)
+        if value and 0 < value <= 6:
+            return value
+
+    return 0
+
+
+def generate_month_sequence(start_date, end_date):
+    """Genera una lista de meses (formato YYYY-MM) desde start_date hasta end_date inclusive."""
+    if not start_date or not end_date:
+        return []
+
+    sequence = []
+    current_year = start_date.year
+    current_month = start_date.month
+
+    while (current_year, current_month) <= (end_date.year, end_date.month):
+        sequence.append(f"{current_year:04d}-{current_month:02d}")
+        if current_month == 12:
+            current_month = 1
+            current_year += 1
+        else:
+            current_month += 1
+    return sequence
+
+
+@lru_cache(maxsize=1)
+def load_total_habitaciones_map():
+    """
+    Carga un mapeo {codigo_unidad: total_habitaciones} desde unidades.csv.
+    Se cachea para evitar lecturas repetidas en disco.
+    """
+    mapping = {}
+    csv_path = BASE_DIR / 'unidades.csv'
+    if not csv_path.exists():
+        return mapping
+
+    try:
+        with csv_path.open('r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                codigo = row.get('codigo')
+                hab = row.get('total_habitaciones')
+                if not codigo or not hab:
+                    continue
+                try:
+                    value = int(float(hab))
+                except ValueError:
+                    continue
+                if 0 < value <= 6:
+                    mapping[codigo] = value
+    except FileNotFoundError:
+        return {}
+
+    return mapping
+
 # --- INICIO DE LA SOLUCIÓN ---
 @app.route('/')
 def index():
-    # Redirige a la página de precios de un proyecto por defecto (ej. "STILL")
+    # Redirige al dashboard de un proyecto por defecto (ej. "STILL")
     # Puedes cambiar "STILL" por cualquier otro de tus proyectos válidos.
-    return redirect(url_for('pricing', project_name='STILL'))
+    return redirect(url_for('dashboard', project_name='STILL'))
 # --- FIN DE LA SOLUCIÓN ---
 
 # --- 2. FILTRO DE MONEDA PERSONALIZADO ---
@@ -130,6 +217,298 @@ def pricing_redirect():
         first_project = 'STILL' if 'STILL' in [p['nombre_proyecto'] for p in projects] else projects[0]['nombre_proyecto']
         return redirect(url_for('pricing', project_name=first_project))
     return "No hay proyectos cargados en la base de datos."
+
+
+@app.route('/dashboard')
+def dashboard_redirect():
+    conn = get_db_connection()
+    projects = conn.execute("SELECT DISTINCT nombre_proyecto FROM unidades ORDER BY nombre_proyecto").fetchall()
+    conn.close()
+    if projects:
+        first_project = 'STILL' if 'STILL' in [p['nombre_proyecto'] for p in projects] else projects[0]['nombre_proyecto']
+        return redirect(url_for('dashboard', project_name=first_project))
+    return "No hay proyectos cargados en la base de datos."
+
+
+@app.route('/dashboard/<project_name>')
+def dashboard(project_name):
+    conn = get_db_connection()
+    all_projects = conn.execute("SELECT DISTINCT nombre_proyecto FROM unidades ORDER BY nombre_proyecto").fetchall()
+    units = conn.execute("SELECT * FROM unidades WHERE nombre_proyecto = ?", (project_name,)).fetchall()
+
+    # Datos base
+    fecha_inicio_row = conn.execute(
+        "SELECT fecha_inicio_venta FROM proyecto_fechas_inicio WHERE nombre_proyecto = ?", 
+        (project_name,)
+    ).fetchone()
+    conn.close()
+
+    if not units:
+        summary_cards = {
+            'unidades_vendidas': 0,
+            'progreso_temporal': 0,
+            'precio_m2': 0,
+            'ventas': 0,
+            'area_vendida': 0
+        }
+        return render_template(
+            'dashboard.html',
+            all_projects=all_projects,
+            current_project=project_name,
+            summary_cards=summary_cards,
+            evolutivo={'labels': [], 'units': [], 'ticket': [], 'price_m2': []},
+            dorm_bars=[],
+            layout_overview=[],
+            gauge={'vendido_pct': 0, 'por_vender_pct': 0, 'incremento_pct': 0},
+            meta_provisional=0,
+            color_palette={
+                'text_primary': '#454769',
+                'text_secondary': '#626481',
+                'bar_primary': '#727ab5',
+                'bar_secondary': '#a9b9da',
+                'bar_gray': '#cbcbd0',
+                'line_blue': '#4f81bd',
+                'line_red': '#c0504d',
+                'line_green': '#9bbb59'
+            }
+        )
+
+    today = date.today()
+    start_date = None
+    if fecha_inicio_row and fecha_inicio_row[0]:
+        try:
+            start_date = datetime.strptime(fecha_inicio_row[0], '%Y-%m-%d').date()
+        except ValueError:
+            start_date = None
+
+    # Calcular progreso temporal
+    meses_transcurridos = 0
+    if start_date:
+        meses_transcurridos = (today.year - start_date.year) * 12 + (today.month - start_date.month)
+        if today.day < start_date.day:
+            meses_transcurridos -= 1
+        if meses_transcurridos < 0:
+            meses_transcurridos = 0
+    progreso_temporal = min(round((meses_transcurridos / 24) * 100, 1), 100) if meses_transcurridos else 0
+
+    # Determinar unidades en alerta (rojas) replicando la lógica existente
+    tipologias_data = defaultdict(list)
+    for unit in units:
+        tipologias_data[safe_get(unit, 'nombre_tipologia', '')].append(unit)
+
+    layout_overview = []
+    for tipologia, tip_units in tipologias_data.items():
+        total_tip = len(tip_units)
+        sold_tip_units = [u for u in tip_units if (safe_get(u, 'estado_comercial', '') or '').lower() == 'vendido']
+        sold_count = len(sold_tip_units)
+        sold_pct = (sold_count / total_tip * 100) if total_tip > 0 else 0
+
+        precio_m2_values = []
+        for u in sold_tip_units:
+            precio_m2_val = safe_get(u, 'precio_m2', 0)
+            if precio_m2_val and precio_m2_val > 0:
+                precio_m2_values.append(precio_m2_val)
+            else:
+                area = safe_get(u, 'area_techada', 0) or 0
+                precio_venta = safe_get(u, 'precio_venta', 0) or 0
+                if area > 0 and precio_venta > 0:
+                    precio_m2_values.append(precio_venta / area)
+
+        avg_precio_m2 = round(sum(precio_m2_values) / len(precio_m2_values), 2) if precio_m2_values else 0
+        layout_overview.append({
+            'tipologia': tipologia,
+            'total_unidades': total_tip,
+            'porcentaje_vendido': round(sold_pct, 1),
+            'precio_m2_promedio': avg_precio_m2
+        })
+
+    layout_overview.sort(key=lambda item: item['tipologia'])
+
+    unidades_con_alerta = set()
+    for tipologia_units in tipologias_data.values():
+        total_units = len(tipologia_units)
+        sold_units_tipologia = sum(
+            1 for u in tipologia_units if (safe_get(u, 'estado_comercial', '') or '').lower() == 'vendido'
+        )
+        if total_units > 0 and (sold_units_tipologia / total_units) * 100 >= 20.0:
+            for u in tipologia_units:
+                estado_lower = (safe_get(u, 'estado_comercial', '') or '').lower()
+                if estado_lower not in ['vendido', 'separado', 'proceso de separacion']:
+                    unidades_con_alerta.add(safe_get(u, 'codigo', ''))
+
+    sold_units = []
+    available_units = []
+    alert_units = []
+    separated_units = []
+
+    for unit in units:
+        estado_lower = (safe_get(unit, 'estado_comercial', '') or '').lower()
+        codigo = safe_get(unit, 'codigo', '')
+        if estado_lower == 'vendido':
+            sold_units.append(unit)
+        elif codigo in unidades_con_alerta:
+            alert_units.append(unit)
+        elif estado_lower in ['separado', 'proceso de separacion']:
+            separated_units.append(unit)
+        else:
+            available_units.append(unit)
+
+    total_units = len(units)
+    total_vendidas = len(sold_units)
+    total_por_vender = total_units - total_vendidas
+    total_ventas = sum(safe_get(u, 'precio_venta', 0) or 0 for u in sold_units)
+    area_vendida = sum(safe_get(u, 'area_techada', 0) or 0 for u in sold_units)
+    meta_provisional = sum(safe_get(u, 'precio_lista', 0) or 0 for u in units)
+
+    precio_m2_disponible_valores = [
+        safe_get(u, 'precio_m2', 0) for u in available_units if safe_get(u, 'precio_m2', 0)
+    ]
+    precio_m2_promedio = round(
+        sum(precio_m2_disponible_valores) / len(precio_m2_disponible_valores), 2
+    ) if precio_m2_disponible_valores else 0
+
+    # Evolutivo mensual
+    monthly_summary = defaultdict(lambda: {'units': 0, 'ticket': 0, 'price_m2_sum': 0, 'price_m2_count': 0})
+    for unit in sold_units:
+        fecha_venta_str = safe_get(unit, 'fecha_venta', '')
+        if not fecha_venta_str:
+            continue
+        try:
+            fecha_venta = datetime.strptime(fecha_venta_str, '%Y-%m-%d').date()
+        except ValueError:
+            continue
+        month_key = fecha_venta.strftime('%Y-%m')
+        monthly_summary[month_key]['units'] += 1
+
+        precio_venta = safe_get(unit, 'precio_venta', 0) or 0
+        monthly_summary[month_key]['ticket'] += precio_venta
+
+        precio_m2 = safe_get(unit, 'precio_m2', 0)
+        if precio_m2 and precio_m2 > 0:
+            monthly_summary[month_key]['price_m2_sum'] += precio_m2
+            monthly_summary[month_key]['price_m2_count'] += 1
+        else:
+            area = safe_get(unit, 'area_techada', 0) or 0
+            if area:
+                monthly_summary[month_key]['price_m2_sum'] += precio_venta / area
+                monthly_summary[month_key]['price_m2_count'] += 1
+
+    if start_date:
+        month_sequence = generate_month_sequence(date(start_date.year, start_date.month, 1), today)
+    else:
+        month_sequence = sorted(monthly_summary.keys())
+
+    evolutivo_labels = []
+    evolutivo_units = []
+    evolutivo_ticket = []
+    evolutivo_precio_m2 = []
+
+    for month_key in month_sequence:
+        data_point = monthly_summary.get(month_key, {'units': 0, 'ticket': 0, 'price_m2_sum': 0, 'price_m2_count': 0})
+        evolutivo_labels.append(month_key)
+        evolutivo_units.append(data_point['units'])
+        evolutivo_ticket.append(round(data_point['ticket'], 2))
+        avg_price_m2 = (
+            data_point['price_m2_sum'] / data_point['price_m2_count']
+            if data_point['price_m2_count'] > 0 else 0
+        )
+        evolutivo_precio_m2.append(round(avg_price_m2, 2))
+
+    # Barras por dormitorio
+    dorm_summary = defaultdict(lambda: {
+        'sold_sum': 0, 'sold_count': 0,
+        'available_sum': 0, 'available_count': 0,
+        'alert_sum': 0, 'alert_count': 0
+    })
+
+    for unit in units:
+        dorms = get_total_habitaciones_from_unit(unit)
+        if dorms <= 0:
+            continue
+        label = f"{dorms} dor"
+        estado_lower = (safe_get(unit, 'estado_comercial', '') or '').lower()
+        codigo = safe_get(unit, 'codigo', '')
+
+        if estado_lower == 'vendido':
+            dorm_summary[label]['sold_sum'] += safe_get(unit, 'precio_venta', 0) or 0
+            dorm_summary[label]['sold_count'] += 1
+        elif codigo in unidades_con_alerta:
+            dorm_summary[label]['alert_sum'] += safe_get(unit, 'precio_lista', 0) or 0
+            dorm_summary[label]['alert_count'] += 1
+        elif estado_lower in ['separado', 'proceso de separacion']:
+            # Se incluyen en disponible para efectos de "por vender"
+            dorm_summary[label]['available_sum'] += safe_get(unit, 'precio_lista', 0) or 0
+            dorm_summary[label]['available_count'] += 1
+        else:
+            dorm_summary[label]['available_sum'] += safe_get(unit, 'precio_lista', 0) or 0
+            dorm_summary[label]['available_count'] += 1
+
+    dorm_bars = []
+    for label, stats in dorm_summary.items():
+        sold_avg = stats['sold_sum'] / stats['sold_count'] if stats['sold_count'] else 0
+        available_avg = stats['available_sum'] / stats['available_count'] if stats['available_count'] else 0
+        alert_avg = stats['alert_sum'] / stats['alert_count'] if stats['alert_count'] else 0
+        dorm_bars.append({
+            'label': label,
+            'sold_avg': round(sold_avg, 2),
+            'available_avg': round(available_avg, 2),
+            'alert_avg': round(alert_avg, 2)
+        })
+
+    dorm_bars.sort(key=lambda item: parse_int(item['label'].split()[0], default=0))
+
+    total_general = total_units if total_units > 0 else 1
+    gauge_vendido_pct = round((total_vendidas / total_general) * 100, 2)
+    gauge_por_vender_pct = round((total_por_vender / total_general) * 100, 2)
+    gauge_incremento_pct = 0.0
+
+    summary_cards = {
+        'unidades_vendidas': total_vendidas,
+        'progreso_temporal': progreso_temporal,
+        'precio_m2': precio_m2_promedio,
+        'ventas': total_ventas,
+        'area_vendida': area_vendida
+    }
+
+    color_palette = {
+        'text_primary': '#454769',
+        'text_secondary': '#626481',
+        'bar_primary': '#727ab5',
+        'bar_secondary': '#a9b9da',
+        'bar_gray': '#cbcbd0',
+        'line_blue': '#4f81bd',
+        'line_red': '#c0504d',
+        'line_green': '#9bbb59'
+    }
+
+    evolutivo_data = {
+        'labels': evolutivo_labels,
+        'units': evolutivo_units,
+        'ticket': evolutivo_ticket,
+        'price_m2': evolutivo_precio_m2
+    }
+
+    gauge_data = {
+        'vendido_pct': gauge_vendido_pct,
+        'por_vender_pct': gauge_por_vender_pct,
+        'incremento_pct': gauge_incremento_pct,
+        'vendido_valor': total_vendidas,
+        'por_vender_valor': total_por_vender,
+        'meta_provisional': meta_provisional
+    }
+
+    return render_template(
+        'dashboard.html',
+        all_projects=all_projects,
+        current_project=project_name,
+        summary_cards=summary_cards,
+        evolutivo=evolutivo_data,
+        dorm_bars=dorm_bars,
+        layout_overview=layout_overview,
+        gauge=gauge_data,
+        meta_provisional=meta_provisional,
+        color_palette=color_palette
+    )
 
 # --- 7. RUTA PRINCIPAL PARA LA PARRILLA DE PRECIOS ---
 @app.route('/pricing/<project_name>')
