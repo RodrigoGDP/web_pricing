@@ -43,29 +43,29 @@
   </section>
 
   <section class="charts-row">
-    <div class="card chart-card">
+    <div class="card chart-card chart-card--evolutivo">
       <div class="card-header">
         <h3>Evolutivo de ventas</h3>
         <div class="chart-legend">
           <span class="legend-item">
             <span class="legend-color" style="background-color: {{ color_palette.bar_primary }}"></span>
-            Unidades vendidas
-          </span>
-          <span class="legend-item">
-            <span class="legend-line" style="background-color: {{ color_palette.line_green }}"></span>
-            Ticket
+            velocidad
           </span>
           <span class="legend-item">
             <span class="legend-line" style="background-color: {{ color_palette.line_red }}"></span>
             Precio x m²
           </span>
+          <span class="legend-item">
+            <span class="legend-line" style="background-color: {{ color_palette.line_green }}"></span>
+            Ticket
+          </span>
         </div>
       </div>
       <canvas id="evolutivoChart"></canvas>
     </div>
-    <div class="card chart-card">
+    <div class="card chart-card chart-card--tipologia">
       <div class="card-header">
-        <h3>Precio propuesto por dormitorio</h3>
+        <h3>Precio por tipología</h3>
       </div>
       <canvas id="dormChart"></canvas>
     </div>
@@ -81,9 +81,13 @@
           <thead>
             <tr>
               <th>Tipología</th>
-              <th>Unidades</th>
+              <th>Total de unidades</th>
               <th>% vendido</th>
-              <th>Precio prom m²</th>
+              <th>Precio por m² vendido</th>
+              <th>Velocidad de venta (proyecto)</th>
+              <th>Velocidad venta mercado</th>
+              <th>Absorción</th>
+              <th>Precio por m² - Venta Solarizado mercado</th>
             </tr>
           </thead>
           <tbody>
@@ -92,7 +96,11 @@
               <td>{{ item.tipologia }}</td>
               <td>{{ item.total_unidades }}</td>
               <td>{{ item.porcentaje_vendido }}%</td>
-              <td>{{ item.precio_m2_promedio | currency }}</td>
+              <td>{{ item.precio_m2_vendido | currency }}</td>
+              <td>{{ item.velocidad_venta | velocity_fmt }}</td>
+              <td>{{ item.velocidad_venta_mercado | velocity_fmt }}</td>
+              <td>{{ item.absorcion }}</td>
+              <td>{{ item.precio_promedio_mercado | currency_pen }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -106,11 +114,11 @@
       <div class="gauge-wrapper">
         <canvas id="gaugeChart"></canvas>
         <div class="gauge-summary">
-          <div>
+          <div class="gauge-summary-item">
             <span class="legend-color" style="background-color: {{ color_palette.bar_primary }}"></span>
             Vendido: {{ gauge.vendido_valor }}
           </div>
-          <div>
+          <div class="gauge-summary-item">
             <span class="legend-color" style="background-color: {{ color_palette.bar_secondary }}"></span>
             Por vender: {{ gauge.por_vender_valor }}
           </div>
@@ -124,17 +132,38 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script>
+  Chart.register(ChartDataLabels);
   const palette = {{ color_palette | tojson }};
   const evolutivoData = {{ evolutivo | tojson }};
   const dormBars = {{ dorm_bars | tojson }};
   const gaugeData = {{ gauge | tojson }};
+
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+      return "";
+    }
+    return `US$ ${Number(value).toLocaleString("es-PE", { maximumFractionDigits: 0 })}`;
+  };
+  const numberFormatter = new Intl.NumberFormat("es-PE", {
+    maximumFractionDigits: 0
+  });
+  const unitsMax = Math.max(...evolutivoData.units, 0);
+  const unitsScaleMax = Math.max(6, Math.ceil(unitsMax / 2) * 2 + 2);
 
   const monthLabels = evolutivoData.labels.map((label) => {
     const [year, month] = label.split("-");
     const date = new Date(Number(year), Number(month) - 1);
     return date.toLocaleDateString("es-PE", { month: "short", year: "numeric" });
   });
+  const ticketRaw = (evolutivoData.ticket || []).map((value) => Number(value) || 0);
+  const ticketThousands = ticketRaw.map((value) => value ? value / 1000 : 0);
+  const ticketAxisMax = ticketThousands.length
+    ? Math.max(200, Math.ceil(Math.max(...ticketThousands) / 25) * 25 + 25)
+    : 200;
+  const priceM2Data = (evolutivoData.price_m2 || []).map((value) => Number(value) || 0);
+  const priceAxisMax = priceM2Data.length ? Math.max(...priceM2Data) * 1.1 : undefined;
 
   const ctxEvolutivo = document.getElementById("evolutivoChart").getContext("2d");
   new Chart(ctxEvolutivo, {
@@ -144,38 +173,77 @@
       datasets: [
         {
           type: "bar",
-          label: "Unidades vendidas",
+          label: "velocidad",
           data: evolutivoData.units,
           backgroundColor: palette.bar_primary,
           borderRadius: 8,
-          barPercentage: 0.6,
-          categoryPercentage: 0.6,
-          maxBarThickness: 40,
-          order: 1,
+          barPercentage: 0.45,
+          categoryPercentage: 0.45,
+          maxBarThickness: 28,
+          order: 2,
           yAxisID: "yUnits",
-          stack: "ventas"
-        },
-        {
-          type: "line",
-          label: "Ticket",
-          data: evolutivoData.ticket,
-          borderColor: palette.line_green,
-          backgroundColor: palette.line_green,
-          tension: 0.3,
-          fill: false,
-          yAxisID: "yTicket",
-          order: 0
+          datalabels: {
+            anchor: "end",
+            align: "end",
+            color: palette.text_primary || "#1f2937",
+            clamp: true,
+            offset: -6,
+            font: { weight: "600" },
+            formatter: (value) => value ? numberFormatter.format(value) : ""
+          }
         },
         {
           type: "line",
           label: "Precio x m²",
-          data: evolutivoData.price_m2,
+          data: priceM2Data,
           borderColor: palette.line_red,
           backgroundColor: palette.line_red,
-          tension: 0.3,
+          tension: 0,
+          borderWidth: 2,
+          pointBackgroundColor: palette.line_red,
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
           fill: false,
           yAxisID: "yPrice",
-          order: 0
+          order: 0,
+          datalabels: {
+            align: "top",
+            anchor: "end",
+            backgroundColor: "rgba(255,255,255,0.85)",
+            borderRadius: 4,
+            color: palette.line_red,
+            padding: { top: 2, right: 6, bottom: 2, left: 6 },
+            formatter: (value) => (value ? formatCurrency(value) : "")
+          }
+        },
+        {
+          type: "line",
+          label: "Ticket",
+          data: ticketThousands,
+          borderColor: palette.line_green,
+          backgroundColor: palette.line_green,
+          tension: 0,
+          borderWidth: 2,
+          pointBackgroundColor: palette.line_green,
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          fill: false,
+          yAxisID: "yTicket",
+          order: 1,
+          datalabels: {
+            align: "top",
+            anchor: "end",
+            backgroundColor: "rgba(255,255,255,0.85)",
+            borderRadius: 4,
+            color: palette.line_green,
+            padding: { top: 2, right: 6, bottom: 2, left: 6 },
+            formatter: (_, context) => {
+              const value = ticketThousands[context.dataIndex] || 0;
+              return value ? Number(value).toLocaleString("es-PE", { maximumFractionDigits: 0 }) : "";
+            }
+          }
         }
       ]
     },
@@ -185,31 +253,75 @@
       plugins: {
         legend: {
           display: false
+        },
+        datalabels: {
+          clip: true
         }
       },
       scales: {
         x: {
           stacked: true,
-          ticks: { color: palette.text_secondary }
+          ticks: {
+            color: palette.text_secondary,
+            maxRotation: 0,
+            padding: 6
+          },
+          grid: {
+            color: "rgba(69,71,105,0.08)"
+          }
         },
         yUnits: {
           position: "left",
-          stacked: true,
+          stacked: false,
           beginAtZero: true,
-          ticks: { color: palette.text_secondary }
+          max: unitsScaleMax,
+          display: false,
+          grid: { display: false },
+          ticks: {
+            color: palette.text_secondary,
+            stepSize: unitsScaleMax >= 12 ? 2 : 1,
+            callback: (value) => numberFormatter.format(value)
+          },
+          title: {
+            display: true,
+            text: "velocidad",
+            color: palette.text_secondary,
+            font: { size: 12, weight: "600" }
+          }
         },
         yTicket: {
-          position: "right",
+          position: "left",
           beginAtZero: true,
+          offset: true,
+          max: ticketAxisMax,
           grid: { drawOnChartArea: false },
-          ticks: { color: palette.text_secondary }
+          ticks: {
+            color: palette.line_green,
+            callback: (value) => numberFormatter.format(value)
+          },
+          title: {
+            display: true,
+            text: "Ticket (miles US$)",
+            color: palette.line_green,
+            font: { size: 12, weight: "600" }
+          }
         },
         yPrice: {
           position: "right",
           beginAtZero: true,
+          max: priceAxisMax,
           grid: { drawOnChartArea: false },
-          ticks: { color: palette.text_secondary },
-          offset: true
+          ticks: {
+            color: "#000000",
+            callback: (value) => (value ? formatCurrency(value) : "")
+          },
+          offset: true,
+          title: {
+            display: true,
+            text: "US$ Precio venta por m²",
+            color: "#000000",
+            font: { size: 12, weight: "600" }
+          }
         }
       }
     }

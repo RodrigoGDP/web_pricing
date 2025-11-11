@@ -30,7 +30,8 @@
                     <th>Número de proformas</th>
                     <th>Precio prom actual</th>
                     <th>Velocidad promedio</th>
-                    <th>Precio prom mercado</th>
+                    <th>Precio venta prom soles por m²</th>
+                    <th>Precio por m² - Venta Solarizado mercado</th>
                     <th>Velocidad venta mercado</th>
                     <th>Precio prom sugerido</th>
                     <th>Triggers</th>
@@ -44,9 +45,10 @@
                     <td>{{ row.unidades_disponibles_str }}</td>
                     <td>{{ row.total_proformas }}</td>
                     <td>{{ row.avg_precio_m2|currency }}</td>
-                    <td>{{ row.velocidad_promedio }} u/mes</td>
-                    <td></td>
-                    <td>{{ row.velocidad_venta_mercado or '' }}</td>
+                    <td>{{ row.velocidad_promedio | velocity_fmt }}</td>
+                    <td>{{ row.precio_venta_promedio_m2_pen | currency_pen }}</td>
+                    <td>{{ row.precio_promedio_mercado | currency_pen }}</td>
+                    <td>{{ row.velocidad_venta_mercado | velocity_fmt }}</td>
                     <td></td>
                     <td></td>
                     <td><select><option>Modificar</option><option>Aprobar</option><option>Rechazado</option></select></td>

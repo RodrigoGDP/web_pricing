@@ -1,10 +1,12 @@
 import csv
 import sqlite3
 import random
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import datetime, date
 from functools import lru_cache
 from pathlib import Path
+
+import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for
 
 # --- 1. INICIALIZACIÓN DE LA APLICACIÓN ---
@@ -14,6 +16,7 @@ app = Flask(__name__)
 project_max_columns = {}
 DB_NAME = "database.db"
 BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_EXCHANGE_RATE_PEN = 3.8
 
 def safe_get(row, key, default=None):
     """Función auxiliar para obtener valores de sqlite3.Row de manera segura"""
@@ -109,7 +112,7 @@ def parse_int(value, default=0):
         return default
 
 
-def get_total_habitaciones_from_unit(unit):
+def get_total_habitaciones_from_unit(unit, project_name=""):
     """
     Obtiene el número de dormitorios de una unidad.
     Primero intenta usar el campo total_habitaciones. Si no existe o es 0,
@@ -122,10 +125,12 @@ def get_total_habitaciones_from_unit(unit):
             return value
 
     # Intentar obtenerlo del CSV original usando el código de la unidad
-    codigo = safe_get(unit, 'codigo', '')
-    if codigo:
+    codigo = (safe_get(unit, 'codigo', '') or '').strip()
+    project_key = (project_name or safe_get(unit, 'nombre_proyecto', '') or '').strip()
+    if codigo and project_key:
         csv_map = load_total_habitaciones_map()
-        value = csv_map.get(codigo)
+        project_map = csv_map.get(project_key, {})
+        value = project_map.get(codigo)
         if value and 0 < value <= 6:
             return value
 
@@ -154,10 +159,10 @@ def generate_month_sequence(start_date, end_date):
 @lru_cache(maxsize=1)
 def load_total_habitaciones_map():
     """
-    Carga un mapeo {codigo_unidad: total_habitaciones} desde unidades.csv.
+    Carga un mapeo por proyecto {nombre_proyecto: {codigo_unidad: total_habitaciones}} desde unidades.csv.
     Se cachea para evitar lecturas repetidas en disco.
     """
-    mapping = {}
+    mapping = defaultdict(dict)
     csv_path = BASE_DIR / 'unidades.csv'
     if not csv_path.exists():
         return mapping
@@ -166,20 +171,155 @@ def load_total_habitaciones_map():
         with csv_path.open('r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                codigo = row.get('codigo')
+                codigo = (row.get('codigo') or '').strip()
                 hab = row.get('total_habitaciones')
-                if not codigo or not hab:
+                proyecto = (row.get('nombre_proyecto') or '').strip()
+                if not codigo or not hab or not proyecto:
                     continue
                 try:
                     value = int(float(hab))
                 except ValueError:
                     continue
                 if 0 < value <= 6:
-                    mapping[codigo] = value
+                    mapping[proyecto][codigo] = value
     except FileNotFoundError:
+        return defaultdict(dict)
+
+    return {project: dict(values) for project, values in mapping.items()}
+
+
+def _clean_numeric_series(series):
+    """Convierte una serie de strings en números flotantes, limpiando símbolos y separadores."""
+    if series is None:
+        return pd.Series(dtype=float)
+    cleaned = (
+        series.astype(str)
+        .str.replace(r'[^\d\.,-]', '', regex=True)
+        .str.replace(',', '', regex=False)
+    )
+    return pd.to_numeric(cleaned, errors='coerce')
+
+
+@lru_cache(maxsize=1)
+def load_competencia_metrics():
+    """
+    Calcula métricas de competencia por cantidad de dormitorios basadas en Tb_utf8.csv.
+    Retorna un diccionario {dormitorios: {"precio_promedio": float, "velocidad_promedio": float, "muestras": int}}.
+    """
+    csv_path = BASE_DIR / 'Tb_utf8.csv'
+    if not csv_path.exists():
         return {}
 
-    return mapping
+    try:
+        df = pd.read_csv(
+            csv_path,
+            low_memory=False,
+            parse_dates=['Fecha de Venta', 'Fecha de Inicio de Venta']
+        )
+    except Exception:
+        return {}
+
+    df.columns = [col.strip() for col in df.columns]
+    required_cols = {
+        'Precio por m2 - Venta Solarizado',
+        'Estado de Inmueble',
+        'Sector',
+        'Fecha de Venta',
+        'Fecha de Inicio de Venta',
+        'Cantidad de Dormitorios'
+    }
+    if not required_cols.issubset(df.columns):
+        return {}
+
+    df = df[
+        (df['Estado de Inmueble'].astype(str).str.strip().str.lower() == 'vendido') &
+        (df['Sector'].astype(str).str.strip().str.lower() == 'lima top') &
+        (df['Fecha de Venta'].dt.year.isin([2024, 2025]))
+    ].copy()
+
+    if df.empty:
+        return {}
+
+    df['Precio por m2 - Venta Solarizado'] = _clean_numeric_series(df['Precio por m2 - Venta Solarizado'])
+    df['Cantidad de Dormitorios'] = pd.to_numeric(df['Cantidad de Dormitorios'], errors='coerce')
+    df = df.dropna(subset=['Precio por m2 - Venta Solarizado', 'Cantidad de Dormitorios', 'Fecha de Venta', 'Fecha de Inicio de Venta'])
+
+    if df.empty:
+        return {}
+
+    # Normalizar dormitorios al entero más cercano positivo
+    df['Cantidad de Dormitorios'] = df['Cantidad de Dormitorios'].round().astype(int)
+    df = df[df['Cantidad de Dormitorios'] > 0]
+
+    if df.empty:
+        return {}
+
+    # Calcular velocidad unidad
+    meses = (df['Fecha de Venta'].dt.year - df['Fecha de Inicio de Venta'].dt.year) * 12 + (
+        df['Fecha de Venta'].dt.month - df['Fecha de Inicio de Venta'].dt.month
+    )
+    ajuste_dias = df['Fecha de Venta'].dt.day < df['Fecha de Inicio de Venta'].dt.day
+    meses = meses - ajuste_dias.astype(int)
+    meses = meses.clip(lower=1)
+    df = df[meses > 0].copy()
+    df['velocidad_unidad'] = 1 / meses
+
+    if df.empty:
+        return {}
+
+    grouped = df.groupby('Cantidad de Dormitorios').agg(
+        precio_promedio=('Precio por m2 - Venta Solarizado', 'mean'),
+        velocidad_promedio=('velocidad_unidad', 'mean'),
+        muestras=('Precio por m2 - Venta Solarizado', 'count')
+    )
+
+    return {
+        int(dorm): {
+            'precio_promedio': float(row['precio_promedio']),
+            'velocidad_promedio': float(row['velocidad_promedio']),
+            'muestras': int(row['muestras'])
+        }
+        for dorm, row in grouped.iterrows()
+    }
+
+
+def build_tipologia_dorm_map(tipologias_data_grouped, project_name):
+    """Determina el número de dormitorios predominante por tipología."""
+    dorm_map = {}
+    for tipologia, tip_units in tipologias_data_grouped.items():
+        dorm_counts = [
+            get_total_habitaciones_from_unit(u, project_name)
+            for u in tip_units
+        ]
+        dorm_counts = [d for d in dorm_counts if d and d > 0]
+        if dorm_counts:
+            dorm_map[tipologia] = Counter(dorm_counts).most_common(1)[0][0]
+            continue
+
+        # Fallback heurístico basado en área cuando no hay datos explícitos
+        areas = [
+            (safe_get(u, 'area_techada', 0) or 0)
+            for u in tip_units
+        ]
+        areas = [a for a in areas if a and a > 0]
+        if not areas:
+            dorm_map[tipologia] = None
+            continue
+
+        avg_area = sum(areas) / len(areas)
+        if avg_area <= 55:
+            dorm_est = 1
+        elif avg_area <= 95:
+            dorm_est = 2
+        elif avg_area <= 135:
+            dorm_est = 3
+        elif avg_area <= 170:
+            dorm_est = 4
+        else:
+            dorm_est = 5
+
+        dorm_map[tipologia] = dorm_est
+    return dorm_map
 
 # --- INICIO DE LA SOLUCIÓN ---
 @app.route('/')
@@ -194,6 +334,30 @@ def index():
 def format_currency(value):
     if value is None: return "$0"
     return f"${value:,.0f}"
+
+
+@app.template_filter('currency_pen')
+def format_currency_pen(value):
+    if value is None:
+        return ""
+    try:
+        if isinstance(value, float) and pd.isna(value):
+            return ""
+        return f"S/ {float(value):,.0f}"
+    except (ValueError, TypeError):
+        return ""
+
+
+@app.template_filter('velocity_fmt')
+def format_velocity(value):
+    if value is None:
+        return ""
+    try:
+        if isinstance(value, float) and pd.isna(value):
+            return ""
+        return f"{float(value):.2f} u/mes"
+    except (ValueError, TypeError):
+        return ""
 
 # --- SE ELIMINA EL DICCIONARIO layout_overview_data ---
 
@@ -296,7 +460,12 @@ def dashboard(project_name):
     for unit in units:
         tipologias_data[safe_get(unit, 'nombre_tipologia', '')].append(unit)
 
+    tipologia_dorm_map = build_tipologia_dorm_map(tipologias_data, project_name)
+
+    competencia_metrics = load_competencia_metrics()
+
     layout_overview = []
+    meses_en_venta = max(meses_transcurridos, 1)
     for tipologia, tip_units in tipologias_data.items():
         total_tip = len(tip_units)
         sold_tip_units = [u for u in tip_units if (safe_get(u, 'estado_comercial', '') or '').lower() == 'vendido']
@@ -315,11 +484,22 @@ def dashboard(project_name):
                     precio_m2_values.append(precio_venta / area)
 
         avg_precio_m2 = round(sum(precio_m2_values) / len(precio_m2_values), 2) if precio_m2_values else 0
+        velocidad_venta = round(sold_count / meses_en_venta, 2) if meses_en_venta > 0 else 0
+        absorcion = round(sold_count / total_tip, 2) if total_tip > 0 else 0
+        dorm_key = tipologia_dorm_map.get(tipologia)
+        competencia = competencia_metrics.get(dorm_key) if dorm_key else None
+        precio_mercado = round(competencia['precio_promedio'], 0) if competencia else None
+        velocidad_mercado = round(competencia['velocidad_promedio'], 3) if competencia else None
         layout_overview.append({
             'tipologia': tipologia,
             'total_unidades': total_tip,
             'porcentaje_vendido': round(sold_pct, 1),
-            'precio_m2_promedio': avg_precio_m2
+            'precio_m2_vendido': avg_precio_m2,
+            'velocidad_venta': velocidad_venta,
+            'absorcion': absorcion,
+            'precio_promedio_mercado': precio_mercado,
+            'velocidad_venta_mercado': velocidad_mercado,
+            'dormitorios': dorm_key
         })
 
     layout_overview.sort(key=lambda item: item['tipologia'])
@@ -368,7 +548,13 @@ def dashboard(project_name):
     ) if precio_m2_disponible_valores else 0
 
     # Evolutivo mensual
-    monthly_summary = defaultdict(lambda: {'units': 0, 'ticket': 0, 'price_m2_sum': 0, 'price_m2_count': 0})
+    monthly_summary = defaultdict(lambda: {
+        'units': 0,
+        'ticket_sum': 0,
+        'ticket_count': 0,
+        'price_m2_sum': 0,
+        'price_m2_count': 0
+    })
     for unit in sold_units:
         fecha_venta_str = safe_get(unit, 'fecha_venta', '')
         if not fecha_venta_str:
@@ -381,7 +567,9 @@ def dashboard(project_name):
         monthly_summary[month_key]['units'] += 1
 
         precio_venta = safe_get(unit, 'precio_venta', 0) or 0
-        monthly_summary[month_key]['ticket'] += precio_venta
+        if precio_venta and precio_venta > 0:
+            monthly_summary[month_key]['ticket_sum'] += precio_venta
+            monthly_summary[month_key]['ticket_count'] += 1
 
         precio_m2 = safe_get(unit, 'precio_m2', 0)
         if precio_m2 and precio_m2 > 0:
@@ -404,10 +592,20 @@ def dashboard(project_name):
     evolutivo_precio_m2 = []
 
     for month_key in month_sequence:
-        data_point = monthly_summary.get(month_key, {'units': 0, 'ticket': 0, 'price_m2_sum': 0, 'price_m2_count': 0})
+        data_point = monthly_summary.get(month_key, {
+            'units': 0,
+            'ticket_sum': 0,
+            'ticket_count': 0,
+            'price_m2_sum': 0,
+            'price_m2_count': 0
+        })
         evolutivo_labels.append(month_key)
         evolutivo_units.append(data_point['units'])
-        evolutivo_ticket.append(round(data_point['ticket'], 2))
+        avg_ticket = (
+            data_point['ticket_sum'] / data_point['ticket_count']
+            if data_point['ticket_count'] > 0 else 0
+        )
+        evolutivo_ticket.append(round(avg_ticket, 2))
         avg_price_m2 = (
             data_point['price_m2_sum'] / data_point['price_m2_count']
             if data_point['price_m2_count'] > 0 else 0
@@ -422,7 +620,7 @@ def dashboard(project_name):
     })
 
     for unit in units:
-        dorms = get_total_habitaciones_from_unit(unit)
+        dorms = get_total_habitaciones_from_unit(unit, project_name)
         if dorms <= 0:
             continue
         label = f"{dorms} dor"
@@ -529,6 +727,8 @@ def pricing(project_name):
     all_tipologias = sorted(list(set(safe_get(u, 'nombre_tipologia', '') for u in units_from_db if safe_get(u, 'nombre_tipologia'))))
     
     tipologias_data_grouped = {t: [u for u in units_from_db if safe_get(u, 'nombre_tipologia', '') == t] for t in all_tipologias}
+    tipologia_dorm_map = build_tipologia_dorm_map(tipologias_data_grouped, project_name)
+    competencia_metrics = load_competencia_metrics()
     unidades_con_alerta = set()
     for tipologia, units_in_tipo in tipologias_data_grouped.items():
         total_units = len(units_in_tipo)
@@ -610,12 +810,30 @@ def pricing(project_name):
         total_proformas = sum(safe_get(u, 'proformas_count', 0) or 0 for u in units_in_tipo)
         precios_m2 = [safe_get(u, 'precio_m2', 0) or 0 for u in units_in_tipo if safe_get(u, 'precio_m2', 0) and safe_get(u, 'precio_m2', 0) > 0]
         avg_precio_m2 = sum(precios_m2) / len(precios_m2) if precios_m2 else 0
+        sold_units_tipo = [
+            u for u in units_in_tipo
+            if (safe_get(u, 'estado_comercial', '') or '').lower() == 'vendido'
+        ]
+        precio_venta_m2_values = []
+        for u in sold_units_tipo:
+            area_unit = safe_get(u, 'area_techada', 0) or 0
+            precio_venta_unit = safe_get(u, 'precio_venta', 0) or 0
+            if area_unit and area_unit > 0 and precio_venta_unit and precio_venta_unit > 0:
+                precio_venta_m2_values.append(precio_venta_unit / area_unit)
+        avg_precio_venta_m2_pen = (
+            round((sum(precio_venta_m2_values) / len(precio_venta_m2_values)) * DEFAULT_EXCHANGE_RATE_PEN, 2)
+            if precio_venta_m2_values else 0
+        )
         total_count = len(units_in_tipo)
         available_count = sum(1 for u in units_in_tipo if safe_get(u, 'estado_comercial', '').lower() != 'vendido')
         has_alert = any(safe_get(u, 'codigo', '') in unidades_con_alerta for u in units_in_tipo)
         
         # Calcular velocidad de venta
         velocidad_promedio = calculate_velocity(units_in_tipo, project_name, conn)
+        dorm_key = tipologia_dorm_map.get(tipologia_name)
+        competencia = competencia_metrics.get(dorm_key) if dorm_key else None
+        precio_mercado = round(competencia['precio_promedio'], 0) if competencia else None
+        velocidad_mercado = round(competencia['velocidad_promedio'], 3) if competencia else None
         
         approval_table_data.append({
             'tipologia': tipologia_name,
@@ -623,7 +841,10 @@ def pricing(project_name):
             'total_proformas': total_proformas,
             'avg_precio_m2': avg_precio_m2,
             'velocidad_promedio': velocidad_promedio,
-            'velocidad_venta_mercado': '',  # Vacía por ahora
+            'precio_venta_promedio_m2_pen': avg_precio_venta_m2_pen,
+            'precio_promedio_mercado': precio_mercado,
+            'velocidad_venta_mercado': velocidad_mercado,
+            'dormitorios': dorm_key,
             'has_alert': has_alert,
         })
     
