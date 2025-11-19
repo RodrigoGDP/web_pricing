@@ -262,6 +262,7 @@
     gap: 10px 0;
     margin-bottom: 3rem;
     width: 100%;
+    min-height: 420px;
 }
 .floor-label {
     grid-column: 1 / 2;
@@ -526,8 +527,8 @@
     border-radius: 6px;
     margin: 2px 0;
     padding: 4px 8px;
-    display: inline-block;
     border: 1px solid #d1fae5;
+    text-align: center;
 }
 
 .approval-table td:nth-child(7) { /* Precio venta mercado */
@@ -543,8 +544,8 @@
     border-radius: 6px;
     margin: 2px 0;
     padding: 4px 8px;
-    display: inline-block;
     border: 1px solid #e9d5ff;
+    text-align: center;
 }
 
 .approval-table td:nth-child(2) { /* Unidades disponibles */

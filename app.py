@@ -830,6 +830,7 @@ def pricing(project_name):
         total_proformas = sum(safe_get(u, 'proformas_count', 0) or 0 for u in units_in_tipo)
         precios_m2 = [safe_get(u, 'precio_m2', 0) or 0 for u in units_in_tipo if safe_get(u, 'precio_m2', 0) and safe_get(u, 'precio_m2', 0) > 0]
         avg_precio_m2 = sum(precios_m2) / len(precios_m2) if precios_m2 else 0
+        suggested_price = avg_precio_m2 * 1.04 if avg_precio_m2 else 0
         sold_units_tipo = [
             u for u in units_in_tipo
             if (safe_get(u, 'estado_comercial', '') or '').lower() == 'vendido'
@@ -865,6 +866,7 @@ def pricing(project_name):
             'precio_promedio_mercado': precio_mercado,
             'velocidad_venta_mercado': velocidad_mercado,
             'dormitorios': dorm_key,
+            'precio_sugerido': suggested_price,
             'has_alert': has_alert,
         })
     

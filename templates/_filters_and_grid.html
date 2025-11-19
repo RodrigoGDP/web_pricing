@@ -16,8 +16,6 @@
     </div>
   </div>
 
-  <input type="hidden" name="vista" value="{{ vista_actual }}" />
-
   <button
     class="contrast {% if vista_actual == 'codigo' %}active-view{% endif %}"
     hx-get="{{ url_for('pricing', project_name=current_project, vista='codigo') }}&max_columns={{ max_columns }}"

@@ -49,7 +49,11 @@
                     <td>{{ row.precio_venta_promedio_m2_pen | currency_pen }}</td>
                     <td>{{ row.precio_promedio_mercado | currency_pen }}</td>
                     <td>{{ row.velocidad_venta_mercado | velocity_fmt }}</td>
-                    <td></td>
+                    <td>
+                        {% if row.has_alert and row.precio_sugerido %}
+                        {{ row.precio_sugerido | currency }}
+                        {% endif %}
+                    </td>
                     <td></td>
                     <td><select><option>Modificar</option><option>Aprobar</option><option>Rechazado</option></select></td>
                 </tr>
